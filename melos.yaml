@@ -5,8 +5,10 @@ packages:
 command:
   version:
     workspaceChangelog: false
+    includeScopes: false
 scripts:
   changelog:
     name: changelog
     description: "Generates the changelog using changelog_cli"
-    run: changelog_cli generate
+    run: changelog_cli generate > CHANGELOG.md
+  version: flutter pub run build_runner build --delete-conflicting-outputs && melos run changelog
