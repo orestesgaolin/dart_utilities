@@ -11,4 +11,4 @@ scripts:
     name: changelog
     description: "Generates the changelog using changelog_cli"
     run: changelog_cli generate > CHANGELOG.md
-  version: flutter pub run build_runner build --delete-conflicting-outputs && melos run changelog
+  version: cd changelog_cli && dart run build_runner build --delete-conflicting-outputs
