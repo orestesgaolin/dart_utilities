@@ -1,6 +1,8 @@
 ## changelog_cli
 
-CLI to generate an opinionated changelog
+CLI to generate an opinionated changelog.
+
+By default it just generates the changelog based on the whole git history. You can pass custom `--start` and `--end` parameters which are git refs to get a subset of changes between two commits or tags. That was my main goal with this CLI as it doesn't necessarily require semantic versioning.
 
 ---
 
@@ -25,6 +27,13 @@ changelog_cli generate
 
 # or
 changelog_cli generate --path ~/Projects/my-app --start 1.0.0 --end 1.1.0 -l 2000 > CHANGELOG.md
+```
+
+You can get the previous tag using git command and then pass it to `changelog_cli`:
+
+```sh
+git describe --tags --abbrev=0
+changelog_cli generate --start changelog_cli-v0.0.2
 ```
 
 ## Running Tests with coverage 🧪
