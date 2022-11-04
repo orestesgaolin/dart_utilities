@@ -13,6 +13,10 @@ class ChangelogEntry extends Equatable {
   final String ref;
   final Commit commit;
 
+  String get message =>
+      conventionalCommit.description ?? conventionalCommit.header;
+  String get type => conventionalCommit.type ?? '';
+
   @override
   List<Object?> get props => [
         conventionalCommit,

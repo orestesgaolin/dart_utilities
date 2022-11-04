@@ -2,6 +2,7 @@
 
 import 'package:args/command_runner.dart';
 import 'package:changelog_cli/src/model/model.dart';
+import 'package:changelog_cli/src/printers/printers.dart';
 import 'package:conventional_commit/conventional_commit.dart';
 import 'package:git/git.dart';
 import 'package:mason_logger/mason_logger.dart';
@@ -29,14 +30,16 @@ class GenerateCommand extends Command<int> {
     argParser.addMultiOption(
       'include',
       abbr: 'i',
-      help: 'List of types of conventional commits to include',
+      help: 'List of types of conventional commits to include. '
+          'Order of types defines the order of sections.',
       defaultsTo: [
         'feat',
         'fix',
-        'perf',
         'refactor',
+        'perf',
       ],
     );
+
     argParser.addOption(
       'path',
       abbr: 'p',
@@ -64,7 +67,11 @@ class GenerateCommand extends Command<int> {
     _logger.info('Reading git history from $path');
 
     if (await GitDir.isGitDir(path)) {
-      final commits = await getCommits(start, path);
+      final commits = await getCommits(
+        start: start,
+        end: end,
+        path: path,
+      );
 
       final list = <ChangelogEntry>[];
       for (final v in commits.entries) {
@@ -83,6 +90,9 @@ class GenerateCommand extends Command<int> {
         }
       }
       _logger.info('Found ${list.length} conventional commits');
+
+      final output = SimplePrinter(include).print(list);
+      _logger.info(output);
     } else {
       _logger.warn('Not a Git directory');
       return ExitCode.usage.code;
@@ -91,12 +101,17 @@ class GenerateCommand extends Command<int> {
     return ExitCode.success.code;
   }
 
-  Future<Map<String, Commit>> getCommits(String? start, String path) async {
+  Future<Map<String, Commit>> getCommits({
+    required String path,
+    required String? start,
+    required String? end,
+  }) async {
     final gitDir = await GitDir.fromExisting(path);
 
     if (start?.isNotEmpty == true) {
+      final endRef = end?.isNotEmpty == true ? end! : 'HEAD';
       final commitsRaw = await gitDir.runCommand(
-        ['rev-list', '--format=raw', 'HEAD', '^$start'],
+        ['rev-list', '--format=raw', endRef, '^$start'],
       );
       final commits = Commit.parseRawRevList(commitsRaw.stdout as String);
       return commits;
