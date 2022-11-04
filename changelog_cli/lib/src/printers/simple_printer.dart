@@ -12,7 +12,8 @@ class SimplePrinter {
     for (final type in types) {
       final group = groupedBy[type];
       if (group != null) {
-        buffer.writeln('## $type');
+        final title = mapping[type] ?? type;
+        buffer.writeln('## $title');
         for (final entry in group) {
           buffer.writeln('- ${entry.message}');
         }
@@ -22,3 +23,15 @@ class SimplePrinter {
     return buffer.toString();
   }
 }
+
+const mapping = {
+  'feat': 'Features',
+  'fix': 'Bug Fixes',
+  'perf': 'Performance Improvements',
+  'refactor': 'Code Refactoring',
+  'test': 'Tests',
+  'docs': 'Documentation',
+  'chore': 'Chores',
+  'build': 'Build System',
+  'ci': 'Continuous Integration',
+};
