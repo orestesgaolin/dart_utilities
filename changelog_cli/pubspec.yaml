@@ -1,7 +1,6 @@
 name: changelog_cli
 description: A Very Good Project created by Very Good CLI.
-version: 0.0.1
-publish_to: none
+version: 0.0.2
 
 environment:
   sdk: ">=2.18.0 <3.0.0"
