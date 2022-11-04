@@ -70,10 +70,9 @@ class GenerateCommand extends Command<int> {
     final include = argResults?['include'] as List<String>? ?? [];
     final limit = int.tryParse(argResults?['limit'] as String? ?? '');
 
-    final path = argResults!['path'] as String;
-    _logger.detail('Reading git history from $path');
+    final path = await getGitPath();
 
-    if (await GitDir.isGitDir(path)) {
+    if (path != null) {
       final commits = await getCommits(
         start: start,
         end: end,
@@ -114,12 +113,24 @@ class GenerateCommand extends Command<int> {
     return ExitCode.success.code;
   }
 
+  Future<String?> getGitPath() async {
+    final argPath = argResults!['path'] as String;
+    _logger.detail('Reading git history from $argPath');
+
+    final isGit = await GitDir.isGitDir(argPath);
+    _logger.detail('Repository is git root: $isGit');
+    if (isGit) {
+      return argPath;
+    }
+    return null;
+  }
+
   Future<Map<String, Commit>> getCommits({
     required String path,
     required String? start,
     required String? end,
   }) async {
-    final gitDir = await GitDir.fromExisting(path);
+    final gitDir = await GitDir.fromExisting(path, allowSubdirectory: true);
 
     if (start?.isNotEmpty == true) {
       final endRef = end?.isNotEmpty == true ? end! : 'HEAD';
