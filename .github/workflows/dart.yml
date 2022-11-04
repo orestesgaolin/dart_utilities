@@ -2,10 +2,9 @@ name: Build and generate changelog
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
-
+    branches: ["main"]
 
 jobs:
   build:
@@ -16,20 +15,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      
+
       - uses: dart-lang/setup-dart@9a04e6d73cca37bd455e0608d7e5092f881fd603
 
       - name: Install dependencies
         run: dart pub get
-        
+
       - name: Activate the changelog_cli
-        run: dart pub global activate --source=path .
+        run: dart pub global activate --source=path ..
 
       - name: Analyze project source
         run: dart analyze
 
       - name: Run tests
         run: dart test
-      
+
       - name: Generate the changelog
         run: changelog_cli generate
