@@ -28,7 +28,7 @@ const mapping = {
   'feat': 'Features',
   'fix': 'Bug Fixes',
   'perf': 'Performance Improvements',
-  'refactor': 'Code Refactoring',
+  'refactor': 'Refactor',
   'test': 'Tests',
   'docs': 'Documentation',
   'chore': 'Chores',
