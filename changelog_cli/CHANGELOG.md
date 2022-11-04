@@ -1,6 +1,12 @@
+## 0.0.2+3
+
+**Code Refactoring**
+
+- use human readable names for sections
+
 ## 0.0.2
 
-## feat
+**Features**
 
 - add limit option
 - add simple printer
