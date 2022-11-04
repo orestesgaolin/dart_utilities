@@ -1,6 +1,6 @@
 name: changelog_cli
 description: A Very Good Project created by Very Good CLI.
-version: 0.0.2
+version: 0.0.2+3
 repository: https://github.com/orestesgaolin/dart_utilities/tree/main/changelog_cli
 
 environment:
