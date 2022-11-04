@@ -2,10 +2,10 @@ version: 2
 enable-beta-ecosystems: true
 updates:
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directory: "changelog_cli"
     schedule:
       interval: "daily"
   - package-ecosystem: "pub"
-    directory: "/"
+    directory: "changelog_cli"
     schedule:
       interval: "daily"
