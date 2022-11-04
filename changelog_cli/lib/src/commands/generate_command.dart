@@ -39,7 +39,6 @@ class GenerateCommand extends Command<int> {
         'perf',
       ],
     );
-
     argParser.addOption(
       'path',
       abbr: 'p',
@@ -69,7 +68,7 @@ class GenerateCommand extends Command<int> {
     final start = argResults?['start'] as String?;
     final end = argResults?['end'] as String?;
     final include = argResults?['include'] as List<String>? ?? [];
-    final limit = int.tryParse(argResults?['limit'] as String? ?? '') ?? null;
+    final limit = int.tryParse(argResults?['limit'] as String? ?? '');
 
     final path = argResults!['path'] as String;
     _logger.detail('Reading git history from $path');
