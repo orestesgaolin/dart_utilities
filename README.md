@@ -21,7 +21,10 @@ dart pub global activate --source=path <path to this package>
 ## Usage
 
 ```sh
-$ changelog_cli generate
+changelog_cli generate
+
+# or
+changelog_cli generate --path ~/Projects/my-app --start 1.0.0 --end 1.1.0 -l 2000 > CHANGELOG.md
 ```
 
 ## Running Tests with coverage 🧪
