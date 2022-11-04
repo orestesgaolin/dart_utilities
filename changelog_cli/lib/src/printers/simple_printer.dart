@@ -1,3 +1,5 @@
+// ignore_for_file: cascade_invocations
+
 import 'package:changelog_cli/src/model/changelog_entry.dart';
 import 'package:collection/collection.dart';
 
@@ -13,7 +15,8 @@ class SimplePrinter {
       final group = groupedBy[type];
       if (group != null) {
         final title = mapping[type] ?? type;
-        buffer.writeln('## $title');
+        buffer.writeln('**$title**');
+        buffer.writeln();
         for (final entry in group) {
           buffer.writeln('- ${entry.message}');
         }
