@@ -46,6 +46,13 @@ class GenerateCommand extends Command<int> {
       help: 'Path to the package',
       defaultsTo: '.',
     );
+    argParser.addOption(
+      'limit',
+      abbr: 'l',
+      help: 'Max length of the changelog '
+          '(you can use e.g. 500 for AppStore changelog)',
+      defaultsTo: '',
+    );
   }
 
   @override
@@ -62,9 +69,10 @@ class GenerateCommand extends Command<int> {
     final start = argResults?['start'] as String?;
     final end = argResults?['end'] as String?;
     final include = argResults?['include'] as List<String>? ?? [];
+    final limit = int.tryParse(argResults?['limit'] as String? ?? '') ?? null;
 
     final path = argResults!['path'] as String;
-    _logger.info('Reading git history from $path');
+    _logger.detail('Reading git history from $path');
 
     if (await GitDir.isGitDir(path)) {
       final commits = await getCommits(
@@ -89,10 +97,16 @@ class GenerateCommand extends Command<int> {
           }
         }
       }
-      _logger.info('Found ${list.length} conventional commits');
+      _logger.detail('Found ${list.length} conventional commits');
 
       final output = SimplePrinter(include).print(list);
-      _logger.info(output);
+
+      if (limit != null && limit > 0) {
+        final limitClamped = limit.clamp(0, output.length);
+        _logger.info(output.substring(0, limitClamped));
+      } else {
+        _logger.info(output);
+      }
     } else {
       _logger.warn('Not a Git directory');
       return ExitCode.usage.code;

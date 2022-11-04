@@ -16,6 +16,7 @@ class SimplePrinter {
         for (final entry in group) {
           buffer.writeln('- ${entry.message}');
         }
+        buffer.writeln();
       }
     }
     return buffer.toString();
