@@ -21,17 +21,7 @@ dart pub global activate --source=path <path to this package>
 ## Usage
 
 ```sh
-# Sample command
-$ changelog_cli sample
-
-# Sample command optioon
-$ changelog_cli sample --cyan
-
-# Show CLI version
-$ changelog_cli --version
-
-# Show usage help
-$ changelog_cli --help
+$ changelog_cli generate
 ```
 
 ## Running Tests with coverage 🧪
@@ -39,7 +29,7 @@ $ changelog_cli --help
 To run all unit tests use the following command:
 
 ```sh
-$ dart pub global activate coverage 1.2.0
+$ dart pub global activate coverage
 $ dart test --coverage=coverage
 $ dart pub global run coverage:format_coverage --lcov --in=coverage --out=coverage/lcov.info
 ```
