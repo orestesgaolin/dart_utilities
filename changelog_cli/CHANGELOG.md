@@ -1,3 +1,11 @@
+## 0.0.2+5
+
+**Refactor**
+
+- improve simple printer
+- extract getting git dir from arg
+- use human readable names for sections
+
 ## 0.0.2+4
 
 **Code Refactoring**
