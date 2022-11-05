@@ -1,3 +1,9 @@
+## 0.0.3+1
+
+**Bug Fixes**
+
+- don't include version in header if not provided
+
 ## 0.0.3
 
 **Features**
