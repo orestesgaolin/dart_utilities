@@ -11,8 +11,13 @@ class SimplePrinter {
   String print(List<ChangelogEntry> entries, String version) {
     final groupedBy = entries.groupListsBy((e) => e.type);
     final buffer = StringBuffer();
-    buffer.writeln('## $version');
+    if (version.isNotEmpty) {
+      buffer.writeln('## $version');
+    } else {
+      buffer.writeln('## Changes');
+    }
     buffer.writeln();
+
     for (final type in types) {
       final group = groupedBy[type];
       if (group != null) {
