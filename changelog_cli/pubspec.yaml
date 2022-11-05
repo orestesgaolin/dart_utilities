@@ -1,6 +1,6 @@
 name: changelog_cli
 description: Simple CLI to generate simple changelog
-version: 0.0.3+1
+version: 0.0.3+2
 repository: https://github.com/orestesgaolin/dart_utilities/tree/main/changelog_cli
 
 environment:
