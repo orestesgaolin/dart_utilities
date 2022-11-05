@@ -1,3 +1,9 @@
+## 0.0.3
+
+ - **FEAT**: let manually specify the version.
+ - **DOCS**: update the description.
+ - **DOCS**: update readme.
+
 ## 0.0.2+5
 
 **Refactor**
