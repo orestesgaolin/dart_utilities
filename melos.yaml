@@ -6,6 +6,7 @@ command:
   version:
     workspaceChangelog: false
     includeScopes: false
+    updateChangelog: false
 scripts:
   changelog:
     name: changelog

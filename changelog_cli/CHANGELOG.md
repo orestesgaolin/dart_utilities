@@ -1,3 +1,9 @@
+## 0.0.3+2
+
+**Bug Fixes**
+
+- handle bad git revision in generate command
+
 ## 0.0.3+1
 
 **Bug Fixes**
