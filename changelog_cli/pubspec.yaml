@@ -1,6 +1,6 @@
 name: changelog_cli
 description: Simple CLI to generate basic changelog for your project using conventional commits
-version: 0.0.3+2
+version: 0.0.3+3
 repository: https://github.com/orestesgaolin/dart_utilities/tree/main/changelog_cli
 screenshots:
   - description: "Example usage of the changelog_cli"
