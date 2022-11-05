@@ -2,6 +2,8 @@
 
 CLI to generate an opinionated changelog.
 
+<img src="https://raw.githubusercontent.com/orestesgaolin/dart_utilities/main/changelog_cli/example/screenshots/changelog_cli.png?token=GHSAT0AAAAAABWNHNTSBEDP4XHYYR5P6SSSY3GKMBQ" alt="Example usage screenshot" width="600">
+
 By default it just generates the changelog based on the whole git history. You can pass custom `--start` and `--end` parameters which are git refs to get a subset of changes between two commits or tags. That was my main goal with this CLI as it doesn't necessarily require semantic versioning.
 
 ---
