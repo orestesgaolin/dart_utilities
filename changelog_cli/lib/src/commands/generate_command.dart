@@ -85,6 +85,10 @@ class GenerateCommand extends Command<int> {
         end: end,
         path: path,
       );
+      if (commits.isEmpty) {
+        _logger.info('No changes found');
+        return ExitCode.success.code;
+      }
 
       final list = <ChangelogEntry>[];
       for (final v in commits.entries) {
@@ -137,18 +141,23 @@ class GenerateCommand extends Command<int> {
     required String? start,
     required String? end,
   }) async {
-    final gitDir = await GitDir.fromExisting(path, allowSubdirectory: true);
+    try {
+      final gitDir = await GitDir.fromExisting(path, allowSubdirectory: true);
 
-    if (start?.isNotEmpty == true) {
-      final endRef = end?.isNotEmpty == true ? end! : 'HEAD';
-      final commitsRaw = await gitDir.runCommand(
-        ['rev-list', '--format=raw', endRef, '^$start'],
-      );
-      final commits = Commit.parseRawRevList(commitsRaw.stdout as String);
-      return commits;
-    } else {
-      final commits = await gitDir.commits();
-      return commits;
+      if (start?.isNotEmpty == true) {
+        final endRef = end?.isNotEmpty == true ? end! : 'HEAD';
+        final commitsRaw = await gitDir.runCommand(
+          ['rev-list', '--format=raw', endRef, '^$start'],
+        );
+        final commits = Commit.parseRawRevList(commitsRaw.stdout as String);
+        return commits;
+      } else {
+        final commits = await gitDir.commits();
+        return commits;
+      }
+    } catch (e) {
+      _logger.warn('Could not get commits for specified range: $e');
+      return {};
     }
   }
 }
