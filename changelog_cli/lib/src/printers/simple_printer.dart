@@ -8,9 +8,11 @@ class SimplePrinter {
 
   final List<String> types;
 
-  String print(List<ChangelogEntry> entries) {
+  String print(List<ChangelogEntry> entries, String version) {
     final groupedBy = entries.groupListsBy((e) => e.type);
     final buffer = StringBuffer();
+    buffer.writeln('## $version');
+    buffer.writeln();
     for (final type in types) {
       final group = groupedBy[type];
       if (group != null) {

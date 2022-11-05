@@ -46,6 +46,12 @@ class GenerateCommand extends Command<int> {
       defaultsTo: '.',
     );
     argParser.addOption(
+      'version',
+      abbr: 'v',
+      help: 'Manually specify version',
+      defaultsTo: '',
+    );
+    argParser.addOption(
       'limit',
       abbr: 'l',
       help: 'Max length of the changelog '
@@ -68,6 +74,7 @@ class GenerateCommand extends Command<int> {
     final start = argResults?['start'] as String?;
     final end = argResults?['end'] as String?;
     final include = argResults?['include'] as List<String>? ?? [];
+    final version = argResults?['version'] as String;
     final limit = int.tryParse(argResults?['limit'] as String? ?? '');
 
     final path = await getGitPath();
@@ -97,7 +104,7 @@ class GenerateCommand extends Command<int> {
       }
       _logger.detail('Found ${list.length} conventional commits');
 
-      final output = SimplePrinter(include).print(list);
+      final output = SimplePrinter(include).print(list, version);
 
       if (limit != null && limit > 0) {
         final limitClamped = limit.clamp(0, output.length);
