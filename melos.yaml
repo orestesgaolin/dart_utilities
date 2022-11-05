@@ -11,4 +11,3 @@ scripts:
     name: changelog
     description: "Generates the changelog using changelog_cli"
     run: changelog_cli generate > changelog_cli/CHANGELOG.md
-  version: cd changelog_cli && dart pub run build_runner build --delete-conflicting-outputs

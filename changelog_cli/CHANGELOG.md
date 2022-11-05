@@ -1,3 +1,9 @@
+## 0.0.3
+
+**Features**
+
+- let manually specify the version
+
 ## 0.0.2+5
 
 **Refactor**
