@@ -8,7 +8,7 @@
 
 ## 0.0.2+4
 
-**Code Refactoring**
+**Refactor**
 
 - use human readable names for sections
 
