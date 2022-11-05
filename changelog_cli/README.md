@@ -26,7 +26,7 @@ dart pub global activate --source=path <path to this package>
 changelog_cli generate
 
 # or
-changelog_cli generate --path ~/Projects/my-app --start 1.0.0 --end 1.1.0 -l 2000 > CHANGELOG.md
+changelog_cli generate --path ~/Projects/my-app --start 1.0.0 --end 1.1.0 --version 1.1.0 --limit 2000
 ```
 
 You can get the previous tag using git command and then pass it to `changelog_cli`:
