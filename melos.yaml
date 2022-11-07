@@ -15,6 +15,6 @@ scripts:
   generate:
     name: generate
     run: cd changelog_cli && dart run build_runner build --delete-conflicting-outputs
-  preversion:
+  version:
     name: preversion
     run: melos run generate && melos run changelog
