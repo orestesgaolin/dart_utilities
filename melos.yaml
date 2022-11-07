@@ -11,10 +11,10 @@ scripts:
   changelog:
     name: changelog
     description: "Generates the changelog using changelog_cli"
-    run: changelog_cli generate > changelog_cli/CHANGELOG.md
+    run: changelog_cli generate --start `git describe --tags --abbrev=0`
   generate:
     name: generate
     run: cd changelog_cli && dart run build_runner build --delete-conflicting-outputs
   preversion:
     name: preversion
-    run: melos run generate
+    run: melos run generate && melos run changelog
