@@ -58,6 +58,13 @@ class GenerateCommand extends Command<int> {
           '(you can use e.g. 500 for AppStore changelog)',
       defaultsTo: '',
     );
+    argParser.addFlag(
+      'auto',
+      abbr: 'a',
+      help: 'Automatically detect previous tag by using git describe',
+      // ignore: avoid_redundant_argument_values
+      defaultsTo: false,
+    );
   }
 
   @override
@@ -80,8 +87,15 @@ class GenerateCommand extends Command<int> {
     final path = await getGitPath();
 
     if (path != null) {
+      final String? startRef;
+      if (argResults?['auto'] == true) {
+        startRef = await getLastTag(path: path);
+      } else {
+        startRef = start;
+      }
+
       final commits = await getCommits(
-        start: start,
+        start: startRef,
         end: end,
         path: path,
       );
@@ -158,6 +172,26 @@ class GenerateCommand extends Command<int> {
     } catch (e) {
       _logger.warn('Could not get commits for specified range: $e');
       return {};
+    }
+  }
+
+  Future<String?> getLastTag({
+    required String path,
+  }) async {
+    try {
+      final gitDir = await GitDir.fromExisting(path, allowSubdirectory: true);
+
+      final commitsRaw = await gitDir.runCommand([
+        'describe',
+        '--tags',
+        '--abbrev=0',
+      ]);
+
+      final tag = (commitsRaw.stdout as String).replaceAll('\n', '');
+      return tag;
+    } catch (e) {
+      _logger.warn('Could not get tag: $e');
+      return null;
     }
   }
 }
