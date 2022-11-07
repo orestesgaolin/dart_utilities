@@ -12,3 +12,9 @@ scripts:
     name: changelog
     description: "Generates the changelog using changelog_cli"
     run: changelog_cli generate > changelog_cli/CHANGELOG.md
+  generate:
+    name: generate
+    run: cd changelog_cli && dart run build_runner build --delete-conflicting-outputs
+  preversion:
+    name: preversion
+    run: melos run generate
