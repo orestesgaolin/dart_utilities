@@ -43,5 +43,5 @@ const mapping = {
   'docs': 'Documentation',
   'chore': 'Chores',
   'build': 'Build System',
-  'ci': 'Continuous Integration',
+  'ci': 'CI',
 };
