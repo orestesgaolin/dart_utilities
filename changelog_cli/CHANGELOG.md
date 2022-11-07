@@ -1,3 +1,9 @@
+## 0.0.3+5
+
+**Refactor**
+
+- use shorter name for CI type
+
 ## 0.0.3+4
 
 **Documentation**
