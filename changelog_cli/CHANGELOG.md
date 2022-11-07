@@ -1,3 +1,9 @@
+## 0.0.4
+
+**Features**
+
+- add auto flag that generates the changelog from the latest tag accessible via git describe
+
 ## 0.0.3+5
 
 **Refactor**
