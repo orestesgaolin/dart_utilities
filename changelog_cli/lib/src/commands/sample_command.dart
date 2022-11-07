@@ -9,7 +9,6 @@ import 'package:args/command_runner.dart';
 import 'package:mason_logger/mason_logger.dart';
 
 /// {@template sample_command}
-///
 /// `changelog_cli sample`
 /// A [Command] to exemplify a sub command
 /// {@endtemplate}

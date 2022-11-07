@@ -8,8 +8,8 @@ import 'package:git/git.dart';
 import 'package:mason_logger/mason_logger.dart';
 
 /// {@template generate_command}
-///
 /// `changelog_cli generate`
+///
 /// A [Command] to generate a changelog
 /// {@endtemplate}
 class GenerateCommand extends Command<int> {
