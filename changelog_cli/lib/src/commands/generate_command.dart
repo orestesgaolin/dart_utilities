@@ -65,6 +65,16 @@ class GenerateCommand extends Command<int> {
       // ignore: avoid_redundant_argument_values
       defaultsTo: false,
     );
+    argParser.addOption(
+      'printer',
+      abbr: 'P',
+      help: 'Select output printer',
+      defaultsTo: 'simple',
+      allowed: [
+        'simple',
+        'markdown',
+      ],
+    );
   }
 
   @override
@@ -122,7 +132,13 @@ class GenerateCommand extends Command<int> {
       }
       _logger.detail('Found ${list.length} conventional commits');
 
-      final output = SimplePrinter(include).print(list, version);
+      final printer = getPrinter(argResults?['printer'] as String?);
+
+      final output = printer.print(
+        entries: list,
+        version: version,
+        types: include,
+      );
 
       if (limit != null && limit > 0) {
         final limitClamped = limit.clamp(0, output.length);
@@ -192,6 +208,15 @@ class GenerateCommand extends Command<int> {
     } catch (e) {
       _logger.warn('Could not get tag: $e');
       return null;
+    }
+  }
+
+  Printer getPrinter(String? argResult) {
+    switch (argResult) {
+      case 'markdown':
+        return MarkdownPrinter();
+      default:
+        return SimplePrinter();
     }
   }
 }

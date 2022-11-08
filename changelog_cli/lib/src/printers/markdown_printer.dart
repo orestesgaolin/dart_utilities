@@ -4,8 +4,8 @@ import 'package:changelog_cli/src/model/changelog_entry.dart';
 import 'package:changelog_cli/src/printers/printers.dart';
 import 'package:collection/collection.dart';
 
-class SimplePrinter extends Printer {
-  SimplePrinter();
+class MarkdownPrinter extends Printer {
+  MarkdownPrinter();
 
   @override
   String print({
@@ -16,9 +16,9 @@ class SimplePrinter extends Printer {
     final groupedBy = entries.groupListsBy((e) => e.type);
     final buffer = StringBuffer();
     if (version != null && version.isNotEmpty) {
-      buffer.writeln(version);
+      buffer.writeln('## $version');
     } else {
-      buffer.writeln('Changes');
+      buffer.writeln('## Changes');
     }
     buffer.writeln();
 
@@ -26,13 +26,13 @@ class SimplePrinter extends Printer {
       final group = groupedBy[type];
       if (group != null) {
         final title = mapping[type] ?? type;
-        buffer.writeln(title);
+        buffer.writeln('**$title**');
         buffer.writeln();
         for (final entry in group) {
           buffer.write('- ');
           if (entry.conventionalCommit.scopes.isNotEmpty) {
             final scopes = entry.conventionalCommit.scopes.join(', ');
-            buffer.write('$scopes: ');
+            buffer.write('**$scopes**: ');
           }
           buffer.writeln(entry.message);
         }
