@@ -25,7 +25,12 @@ class SimplePrinter {
         buffer.writeln('**$title**');
         buffer.writeln();
         for (final entry in group) {
-          buffer.writeln('- ${entry.message}');
+          buffer.write('- ');
+          if (entry.conventionalCommit.scopes.isNotEmpty) {
+            final scopes = entry.conventionalCommit.scopes.join(', ');
+            buffer.write('**$scopes**: ');
+          }
+          buffer.writeln(entry.message);
         }
         buffer.writeln();
       }
