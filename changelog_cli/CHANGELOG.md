@@ -1,3 +1,9 @@
+## 0.0.6
+
+**Features**
+
+- add markdown printer and expose `--printer` option
+
 ## 0.0.5
 
 **Features**
