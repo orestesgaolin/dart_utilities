@@ -1,3 +1,9 @@
+## 0.0.5
+
+**Features**
+
+- **simple_printer**: include scope of the conventional commit
+
 ## 0.0.4
 
 **Features**
