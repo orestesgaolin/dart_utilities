@@ -1,3 +1,9 @@
+## 0.0.6+1
+
+**Refactor**
+
+- add basic usage reporting
+
 ## 0.0.6
 
 **Features**
