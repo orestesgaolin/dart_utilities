@@ -5,6 +5,9 @@
 // license that can be found in the LICENSE file or at
 // https://opensource.org/licenses/MIT.
 
+import 'dart:async';
+import 'dart:io';
+
 import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:changelog_cli/src/commands/commands.dart';
@@ -95,6 +98,7 @@ class ChangelogCliCommandRunner extends CommandRunner<int> {
     }
     if (topLevelResults.command != null) {
       final commandResult = topLevelResults.command!;
+      await trackUsage(commandResult.name ?? 'unknown');
       _logger
         ..detail('  Command: ${commandResult.name}')
         ..detail('    Command options:');
@@ -134,6 +138,37 @@ ${lightYellow.wrap('Update available!')} ${lightCyan.wrap(packageVersion)} \u219
 Run ${lightCyan.wrap('$executableName update')} to update''',
           );
       }
+    } catch (_) {}
+  }
+
+  Future<void> trackUsage(String command) async {
+    try {
+      unawaited(
+        Process.run(
+          'curl',
+          [
+            '-X',
+            'POST',
+            '-H',
+            'Origin: http://changelog.roszkowski.dev',
+            'https://counter.dev/track?id=f9f43cb9-3e5b-4e7b-9f93-b56739d9b1db&page=$command',
+          ],
+          runInShell: true,
+        ),
+      );
+      unawaited(
+        Process.run(
+          'curl',
+          [
+            '-X',
+            'POST',
+            '-H',
+            'Origin: http://changelog.roszkowski.dev',
+            'https://counter.dev/trackpage?id=f9f43cb9-3e5b-4e7b-9f93-b56739d9b1db&page=$command',
+          ],
+          runInShell: true,
+        ),
+      );
     } catch (_) {}
   }
 }
