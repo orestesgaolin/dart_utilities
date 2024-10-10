@@ -1,3 +1,14 @@
+## 0.1.0
+
+**Chores**
+
+- update major dependencies (conventional_commit, file, pub_updater)
+- **deps**: bump pub_updater from 0.2.4 to 0.3.0 in /changelog_cli
+
+**Refactor**
+
+- update to the latest very_good_cli template, enable completion support
+
 ## 0.0.6+1
 
 **Refactor**
