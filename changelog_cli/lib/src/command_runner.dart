@@ -12,6 +12,7 @@ import 'package:args/args.dart';
 import 'package:args/command_runner.dart';
 import 'package:changelog_cli/src/commands/commands.dart';
 import 'package:changelog_cli/src/version.dart';
+import 'package:cli_completion/cli_completion.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:pub_updater/pub_updater.dart';
 
@@ -26,7 +27,7 @@ const description = 'Command line to generate changelogs';
 /// $ changelog_cli --version
 /// ```
 /// {@endtemplate}
-class ChangelogCliCommandRunner extends CommandRunner<int> {
+class ChangelogCliCommandRunner extends CompletionCommandRunner<int> {
   /// {@macro changelog_cli_command_runner}
   ChangelogCliCommandRunner({
     Logger? logger,
@@ -88,6 +89,13 @@ class ChangelogCliCommandRunner extends CommandRunner<int> {
 
   @override
   Future<int?> runCommand(ArgResults topLevelResults) async {
+    // Fast track completion command
+    if (topLevelResults.command?.name == 'completion') {
+      await super.runCommand(topLevelResults);
+      return ExitCode.success.code;
+    }
+
+    // Verbose logs
     _logger
       ..detail('Argument information:')
       ..detail('  Top level options:');
@@ -109,6 +117,7 @@ class ChangelogCliCommandRunner extends CommandRunner<int> {
       }
     }
 
+    // Run the command or show version
     final int? exitCode;
     if (topLevelResults['version'] == true) {
       _logger.info(packageVersion);
@@ -116,9 +125,12 @@ class ChangelogCliCommandRunner extends CommandRunner<int> {
     } else {
       exitCode = await super.runCommand(topLevelResults);
     }
+
+    // Check for updates
     if (topLevelResults.command?.name != UpdateCommand.commandName) {
       await _checkForUpdates();
     }
+
     return exitCode;
   }
 

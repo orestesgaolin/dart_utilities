@@ -1,159 +1,185 @@
-// Copyright (c) 2022, Very Good Ventures
-// https://verygood.ventures
-//
-// Use of this source code is governed by an MIT-style
-// license that can be found in the LICENSE file or at
-// https://opensource.org/licenses/MIT.
+import 'dart:io';
 
-import 'package:args/command_runner.dart';
 import 'package:changelog_cli/src/command_runner.dart';
+import 'package:changelog_cli/src/commands/commands.dart';
 import 'package:changelog_cli/src/version.dart';
 import 'package:mason_logger/mason_logger.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:pub_updater/pub_updater.dart';
 import 'package:test/test.dart';
 
-import 'commands/update_command_test.dart';
+class _MockLogger extends Mock implements Logger {}
 
-class MockLogger extends Mock implements Logger {}
+class _MockProgress extends Mock implements Progress {}
 
-class MockPubUpdater extends Mock implements PubUpdater {}
-
-const latestVersion = '0.0.0';
-
-final updatePrompt = '''
-${lightYellow.wrap('Update available!')} ${lightCyan.wrap(packageVersion)} \u2192 ${lightCyan.wrap(latestVersion)}
-Run ${lightCyan.wrap('$executableName update')} to update''';
+class _MockPubUpdater extends Mock implements PubUpdater {}
 
 void main() {
-  group('ChangelogCliCommandRunner', () {
+  const latestVersion = '0.0.0';
+
+  group('update', () {
     late PubUpdater pubUpdater;
     late Logger logger;
     late ChangelogCliCommandRunner commandRunner;
 
     setUp(() {
-      pubUpdater = MockPubUpdater();
-
-      when(
-        () => pubUpdater.getLatestVersion(any()),
-      ).thenAnswer((_) async => packageVersion);
-
-      logger = MockLogger();
-
+      final progress = _MockProgress();
+      final progressLogs = <String>[];
+      pubUpdater = _MockPubUpdater();
+      logger = _MockLogger();
       commandRunner = ChangelogCliCommandRunner(
         logger: logger,
         pubUpdater: pubUpdater,
       );
-    });
 
-    test('shows update message when newer version exists', () async {
       when(
         () => pubUpdater.getLatestVersion(any()),
-      ).thenAnswer((_) async => latestVersion);
-
-      final result = await commandRunner.run(['--version']);
-      expect(result, equals(ExitCode.success.code));
-      verify(() => logger.info(updatePrompt)).called(1);
-    });
-
-    test('doesnt show update message when using update command', () async {
+      ).thenAnswer((_) async => packageVersion);
       when(
-        () => pubUpdater.getLatestVersion(any()),
-      ).thenAnswer((_) async => latestVersion);
-      when(
-        () => pubUpdater.update(packageName: packageName),
-      ).thenAnswer((_) => Future.value(FakeProcessResult()));
+        () => pubUpdater.update(
+          packageName: packageName,
+          versionConstraint: latestVersion,
+        ),
+      ).thenAnswer(
+        (_) async => ProcessResult(0, ExitCode.success.code, null, null),
+      );
       when(
         () => pubUpdater.isUpToDate(
           packageName: any(named: 'packageName'),
           currentVersion: any(named: 'currentVersion'),
         ),
-      ).thenAnswer((_) => Future.value(true));
-
-      final progress = MockProgress();
-      final progressLogs = <String>[];
-      when(() => progress.complete(any())).thenAnswer((_) {
-        final message = _.positionalArguments.elementAt(0) as String?;
+      ).thenAnswer((_) async => true);
+      when(() => progress.complete(any())).thenAnswer((answer) {
+        final message = answer.positionalArguments.elementAt(0) as String?;
         if (message != null) progressLogs.add(message);
       });
       when(() => logger.progress(any())).thenReturn(progress);
+    });
+
+    test('can be instantiated without a pub updater', () {
+      final command = UpdateCommand(logger: logger);
+      expect(command, isNotNull);
+    });
+
+    test(
+      'handles pub latest version query errors',
+      () async {
+        when(
+          () => pubUpdater.getLatestVersion(any()),
+        ).thenThrow(Exception('oops'));
+        final result = await commandRunner.run(['update']);
+        expect(result, equals(ExitCode.software.code));
+        verify(() => logger.progress('Checking for updates')).called(1);
+        verify(() => logger.err('Exception: oops'));
+        verifyNever(
+          () => pubUpdater.update(
+            packageName: any(named: 'packageName'),
+            versionConstraint: any(named: 'versionConstraint'),
+          ),
+        );
+      },
+    );
+
+    test(
+      'handles pub update errors',
+      () async {
+        when(
+          () => pubUpdater.getLatestVersion(any()),
+        ).thenAnswer((_) async => latestVersion);
+        when(
+          () => pubUpdater.update(
+            packageName: any(named: 'packageName'),
+            versionConstraint: any(named: 'versionConstraint'),
+          ),
+        ).thenThrow(Exception('oops'));
+        final result = await commandRunner.run(['update']);
+        expect(result, equals(ExitCode.software.code));
+        verify(() => logger.progress('Checking for updates')).called(1);
+        verify(() => logger.err('Exception: oops'));
+        verify(
+          () => pubUpdater.update(
+            packageName: any(named: 'packageName'),
+            versionConstraint: any(named: 'versionConstraint'),
+          ),
+        ).called(1);
+      },
+    );
+
+    test('handles pub update process errors', () async {
+      const error = 'Oh no! Installing this is not possible right now!';
+
+      when(
+        () => pubUpdater.getLatestVersion(any()),
+      ).thenAnswer((_) async => latestVersion);
+
+      when(
+        () => pubUpdater.update(
+          packageName: any(named: 'packageName'),
+          versionConstraint: any(named: 'versionConstraint'),
+        ),
+      ).thenAnswer((_) async => ProcessResult(0, 1, null, error));
 
       final result = await commandRunner.run(['update']);
-      expect(result, equals(ExitCode.success.code));
-      verifyNever(() => logger.info(updatePrompt));
+
+      expect(result, equals(ExitCode.software.code));
+      verify(() => logger.progress('Checking for updates')).called(1);
+      verify(() => logger.err('Error updating CLI: $error'));
+      verify(
+        () => pubUpdater.update(
+          packageName: any(named: 'packageName'),
+          versionConstraint: any(named: 'versionConstraint'),
+        ),
+      ).called(1);
     });
 
-    test('can be instantiated without an explicit analytics/logger instance',
-        () {
-      final commandRunner = ChangelogCliCommandRunner();
-      expect(commandRunner, isNotNull);
-    });
-
-    test('handles FormatException', () async {
-      const exception = FormatException('oops!');
-      var isFirstInvocation = true;
-      when(() => logger.info(any())).thenAnswer((_) {
-        if (isFirstInvocation) {
-          isFirstInvocation = false;
-          throw exception;
-        }
-      });
-      final result = await commandRunner.run(['--version']);
-      expect(result, equals(ExitCode.usage.code));
-      verify(() => logger.err(exception.message)).called(1);
-      verify(() => logger.info(commandRunner.usage)).called(1);
-    });
-
-    test('handles UsageException', () async {
-      final exception = UsageException('oops!', 'exception usage');
-      var isFirstInvocation = true;
-      when(() => logger.info(any())).thenAnswer((_) {
-        if (isFirstInvocation) {
-          isFirstInvocation = false;
-          throw exception;
-        }
-      });
-      final result = await commandRunner.run(['--version']);
-      expect(result, equals(ExitCode.usage.code));
-      verify(() => logger.err(exception.message)).called(1);
-      verify(() => logger.info('exception usage')).called(1);
-    });
-
-    group('--version', () {
-      test('outputs current version', () async {
-        final result = await commandRunner.run(['--version']);
+    test(
+      'updates when newer version exists',
+      () async {
+        when(
+          () => pubUpdater.getLatestVersion(any()),
+        ).thenAnswer((_) async => latestVersion);
+        when(
+          () => pubUpdater.update(
+            packageName: any(named: 'packageName'),
+            versionConstraint: any(named: 'versionConstraint'),
+          ),
+        ).thenAnswer(
+          (_) async => ProcessResult(0, ExitCode.success.code, null, null),
+        );
+        when(() => logger.progress(any())).thenReturn(_MockProgress());
+        final result = await commandRunner.run(['update']);
         expect(result, equals(ExitCode.success.code));
-        verify(() => logger.info(packageVersion)).called(1);
-      });
-    });
+        verify(() => logger.progress('Checking for updates')).called(1);
+        verify(() => logger.progress('Updating to $latestVersion')).called(1);
+        verify(
+          () => pubUpdater.update(
+            packageName: packageName,
+            versionConstraint: latestVersion,
+          ),
+        ).called(1);
+      },
+    );
 
-    group('--verbose', () {
-      test('enables verbose logging', () async {
-        final result = await commandRunner.run(['--verbose']);
+    test(
+      'does not update when already on latest version',
+      () async {
+        when(
+          () => pubUpdater.getLatestVersion(any()),
+        ).thenAnswer((_) async => packageVersion);
+        when(() => logger.progress(any())).thenReturn(_MockProgress());
+        final result = await commandRunner.run(['update']);
         expect(result, equals(ExitCode.success.code));
-
-        verify(() => logger.detail('Argument information:')).called(1);
-        verify(() => logger.detail('  Top level options:')).called(1);
-        verify(() => logger.detail('  - verbose: true')).called(1);
-        verifyNever(() => logger.detail('    Command options:'));
-      });
-
-      test('enables verbose logging for sub commands', () async {
-        final result = await commandRunner.run([
-          'generate',
-          '-p',
-          '..',
-          '--verbose',
-        ]);
-        expect(result, equals(ExitCode.success.code));
-
-        verify(() => logger.detail('Argument information:')).called(1);
-        verify(() => logger.detail('  Top level options:')).called(1);
-        verify(() => logger.detail('  - verbose: true')).called(1);
-        verify(() => logger.detail('  Command: generate')).called(1);
-        verify(() => logger.detail('    Command options:')).called(1);
-        verify(() => logger.detail('    - path: ..')).called(1);
-      });
-    });
+        verify(
+          () => logger.info('CLI is already at the latest version.'),
+        ).called(1);
+        verifyNever(() => logger.progress('Updating to $latestVersion'));
+        verifyNever(
+          () => pubUpdater.update(
+            packageName: any(named: 'packageName'),
+            versionConstraint: any(named: 'versionConstraint'),
+          ),
+        );
+      },
+    );
   });
 }

@@ -1,9 +1,4 @@
-// Copyright (c) 2022, Very Good Ventures
-// https://verygood.ventures
-//
-// Use of this source code is governed by an MIT-style
-// license that can be found in the LICENSE file or at
-// https://opensource.org/licenses/MIT.
+import 'dart:io';
 
 import 'package:args/command_runner.dart';
 import 'package:changelog_cli/src/command_runner.dart';
@@ -53,13 +48,25 @@ class UpdateCommand extends Command<int> {
     }
 
     final updateProgress = _logger.progress('Updating to $latestVersion');
+
+    late final ProcessResult result;
     try {
-      await _pubUpdater.update(packageName: packageName);
+      result = await _pubUpdater.update(
+        packageName: packageName,
+        versionConstraint: latestVersion,
+      );
     } catch (error) {
       updateProgress.fail();
       _logger.err('$error');
       return ExitCode.software.code;
     }
+
+    if (result.exitCode != ExitCode.success.code) {
+      updateProgress.fail();
+      _logger.err('Error updating CLI: ${result.stderr}');
+      return ExitCode.software.code;
+    }
+
     updateProgress.complete('Updated to $latestVersion');
 
     return ExitCode.success.code;
