@@ -17,7 +17,7 @@ dependencies:
   equatable: ^2.0.5
   file: ^7.0.1
   git: ^2.2.0
-  mason_logger: ^0.2.16
+  mason_logger: ">=0.2.16 <0.4.0"
   pub_updater: ^0.4.0
 
 dev_dependencies:
