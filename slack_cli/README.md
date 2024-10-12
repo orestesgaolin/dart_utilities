@@ -13,8 +13,6 @@ Supported commands:
 - `post` - sends a message to Slack channel
 - `update` - updates the CLI
 
----
-
 ## Getting Started 🚀
 
 Activate globally from pub.dev via:
@@ -37,7 +35,7 @@ The `post` command allows to send messages to desired Slack channel. Before you 
 slack_cli post --token <token> --channel <channel> --message <message> --blocks <blocks>
 ```
 
-**Examples**
+### Examples
 
 ```sh
 slack_cli post -t xoxb-xxx \
