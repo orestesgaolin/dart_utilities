@@ -46,7 +46,7 @@ slack_cli post -t xoxb-xxx \
 -b "[header=App build 1234 :white_check_mark:][fields=Commit \`93f5a0f\`=Branch \`main\`][text=*Changelog*\n - *General*: Audio of objects falling at night increased by 33% <https://google.com|EU-2137>\n - All instruments have been replaced with Chipi Chipi Chapa Chapa <https://google.com|EU-997>][text=*Artifacts*][button=Android APK url=http://google.com title=:arrow_down: Download][button=iOS IPA url=http://google.com title=:arrow_down: Download][context=Build run on Oct 10, 2024]"
 ```
 
-![](docs/slack_cli_output.png)
+![](example/screenshots/slack_cli_output.png)
 
 ### Supported blocks
 
