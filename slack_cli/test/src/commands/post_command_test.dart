@@ -35,7 +35,8 @@ void main() {
           '--blocks',
           '[header=This is the header]'
               '[fields=Text fields _use_ *markdown*=and are <https://google.com|separated> with=equal sign]'
-              '[button=Text on the left side url=http://pub.dev title=Button title]'
+              '[button_section=Text on the left side url=http://pub.dev title=Button title]'
+              '[button=Button text url=http://pub.dev]'
               '[context=This is _tiny_ message shown below]',
         ],
       );
@@ -78,25 +79,35 @@ void main() {
     });
   });
 
-  group('parseButtonText', () {
-    test('can parse button text', () async {
+  group('parseButtonSectionText', () {
+    test('can parse button_section elements', () async {
       const testString =
-          'button=Text on the left side url=https://google.com title=Button title';
+          'button_section=Text on the left side url=https://google.com title=Button title';
 
-      final button = parseButtonText(testString);
+      final button = parseButtonSectionText(testString);
       expect(button.button, 'Text on the left side');
       expect(button.url, 'https://google.com');
       expect(button.title, 'Button title');
     });
 
-    test('can parse button text with different order', () async {
+    test('can parse button_section elements with different order', () async {
       const testString =
-          'button=Text on the left side title=Button title url=https://google.com';
+          'button_section=Text on the left side title=Button title url=https://google.com';
 
-      final button = parseButtonText(testString);
+      final button = parseButtonSectionText(testString);
       expect(button.button, 'Text on the left side');
       expect(button.url, 'https://google.com');
       expect(button.title, 'Button title');
+    });
+  });
+
+  group('parseButtonText', () {
+    test('can parse button_section elements', () async {
+      const testString = 'button=Button title url=https://google.com';
+
+      final button = parseButtonText(testString);
+      expect(button.button, 'Button title');
+      expect(button.url, 'https://google.com');
     });
   });
 }

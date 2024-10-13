@@ -48,8 +48,21 @@ class PostCommand extends Command<int> {
             '  [divider]\n'
             '  [img=https://assets3.thrillist.com/v1/image/1682388/size/tl-horizontal_main.jpg title=required title]\n'
             '  [fields=Text fields _use_ *markdown*=and are separated with=equal sign]\n'
-            '  [button=Text on the left side url=http://pub.dev title=Button title] - all properties required\n'
+            '  [button=Button title url=http://pub.dev] - all properties required\n'
+            '  [button_section=Text on the left side url=http://pub.dev title=Button title] - all properties required\n'
             '  [context=This is _tiny_ message shown below]',
+      )
+      ..addFlag(
+        'unfurl-media',
+        help: 'Flag passed to the Slack message body to enable media unfurling',
+        // ignore: avoid_redundant_argument_values
+        defaultsTo: false,
+      )
+      ..addFlag(
+        'unfurl-links',
+        help: 'Flag passed to the Slack message body to enable links unfurling',
+        // ignore: avoid_redundant_argument_values
+        defaultsTo: false,
       );
   }
 
@@ -73,6 +86,8 @@ class PostCommand extends Command<int> {
       channel,
       message,
       blocks,
+      unfurlMedia: argResults?['unfurl-media'] == true,
+      unfurlLinks: argResults?['unfurl-links'] == true,
     );
 
     _logger.info(response);
@@ -83,8 +98,10 @@ class PostCommand extends Command<int> {
     String token,
     String channel,
     String message,
-    String blocks,
-  ) async {
+    String blocks, {
+    required bool unfurlMedia,
+    required bool unfurlLinks,
+  }) async {
     final url = Uri.parse('https://slack.com/api/chat.postMessage');
 
     final parsedBlocks = parseBlocks(blocks, logger: _logger);
@@ -96,10 +113,13 @@ class PostCommand extends Command<int> {
       body: {
         'channel': channel,
         'text': message,
+        'unfurl_media': unfurlMedia.toString(),
+        'unfurl_links': unfurlLinks.toString(),
         'blocks': jsonEncode(parsedBlocks),
       },
     );
     if (response.statusCode == 200) {
+      _logger.detail('Response: ${response.body}');
       return 'Message sent successfully';
     } else {
       return 'Error sending message: ${response.body}';
@@ -158,9 +178,26 @@ List<Block> parseBlocks(String block, {Logger? logger}) {
               altText: image.altText,
             ),
           );
-
         case 'button':
           final button = parseButtonText(block);
+          sections.add(
+            ActionsBlock(
+              elements: [
+                {
+                  'type': 'button',
+                  'text': {
+                    'type': 'plain_text',
+                    'text': button.button,
+                    'emoji': true,
+                  },
+                  'value': 'button',
+                  'url': button.url,
+                },
+              ],
+            ),
+          );
+        case 'button_section':
+          final button = parseButtonSectionText(block);
           sections.add(
             SectionBlock(
               text: button.button,
@@ -171,6 +208,7 @@ List<Block> parseBlocks(String block, {Logger? logger}) {
                   'text': button.title,
                   'emoji': true,
                 },
+                'value': 'button',
                 'url': button.url,
               },
             ),
@@ -202,8 +240,10 @@ List<Block> parseBlocks(String block, {Logger? logger}) {
   return (url: url?.trim() ?? '', altText: altText?.trim() ?? '');
 }
 
-({String button, String url, String title}) parseButtonText(String input) {
-  final buttonRegex = RegExp(r'button=(.*?)\s+(?=url=|title=|$)');
+({String button, String url, String title}) parseButtonSectionText(
+  String input,
+) {
+  final buttonRegex = RegExp(r'button_section=(.*?)\s+(?=url=|title=|$)');
   final urlRegex = RegExp(r'url=(.*?)(?=\s+title=|button=|$)');
   final titleRegex = RegExp(r'title=(.*?)(?=\s+url=|button=|$)');
 
@@ -219,5 +259,23 @@ List<Block> parseBlocks(String block, {Logger? logger}) {
     button: button?.trim() ?? '',
     url: url?.trim() ?? '',
     title: title?.trim() ?? ''
+  );
+}
+
+({String button, String url}) parseButtonText(
+  String input,
+) {
+  final buttonRegex = RegExp(r'button=(.*?)\s+(?=url=|title=|$)');
+  final urlRegex = RegExp(r'url=(.*?)(?=\s+title=|button=|$)');
+
+  final buttonMatch = buttonRegex.firstMatch(input);
+  final urlMatch = urlRegex.firstMatch(input);
+
+  final button = buttonMatch?.group(1);
+  final url = urlMatch?.group(1);
+
+  return (
+    button: button?.trim() ?? '',
+    url: url?.trim() ?? '',
   );
 }
