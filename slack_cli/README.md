@@ -41,7 +41,7 @@ slack_cli post --token <token> --channel <channel> --message <message> --blocks 
 slack_cli post -t xoxb-xxx \
 -c builds \
 -m "Build 1234 finished" \
--b "[header=App build 1234 :white_check_mark:][fields=Commit \`93f5a0f\`=Branch \`main\`][text=*Changelog*\n - *General*: Audio of objects falling at night increased by 33% <https://google.com|EU-2137>\n - All instruments have been replaced with Chipi Chipi Chapa Chapa <https://google.com|EU-997>][text=*Artifacts*][button=Android APK url=http://google.com title=:arrow_down: Download][button=iOS IPA url=http://google.com title=:arrow_down: Download][context=Build run on Oct 10, 2024]"
+-b "[header=App build 1234 :white_check_mark:][fields=Commit \`93f5a0f\`=Branch \`main\`=Workflow \`production\`][text=*Changelog*\n - *General*: Audio of objects falling at night increased by 33% <https://pub.dev|EU-2137>\n - *Sounds*: All instruments have been replaced with Chipi Chipi Chapa Chapa <https://pub.dev|EU-997>][divider][text=*Artifacts*][button_section=Download all artifacts url=http://pub.dev title=Download][button=Android APK (60 MB) url=http://pub.dev][button=iOS IPA (100 MB) url=http://pub.dev][context=Build run on Oct 10, 2024]"
 ```
 
 ![](example/screenshots/slack_cli_output.png)
@@ -58,7 +58,8 @@ Special characters used as delimiters: `[ ] =`
 [divider]
 [img=https://assets3.thrillist.com/v1/image/1682388/size/tl-horizontal_main.jpg title=required title]
 [fields=Text fields _use_ *markdown*=and are separated with=equal sign]
-[button=Text on the left side url=http://pub.dev title=Button title] - all properties required
+[button=Button label url=http://pub.dev]
+[button_section=Text on the left side url=http://pub.dev title=Button title] - all properties required
 [context=This is _tiny_ message shown below]',
 ```
 
