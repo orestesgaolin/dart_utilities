@@ -1,3 +1,9 @@
+## 0.2.0
+
+**Features**
+
+- add slack-markdown printer
+
 ## 0.1.0
 
 **Chores**
