@@ -38,6 +38,12 @@ git describe --tags --abbrev=0
 changelog_cli generate --start changelog_cli-v0.0.2
 ```
 
+### Printers
+
+- `simple` - simple text output
+- `markdown` - markdown output
+- `slack-markdown` - markdown output with Slack-specific formatting
+
 ## Running Tests with coverage 🧪
 
 To run all unit tests use the following command:

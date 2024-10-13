@@ -73,6 +73,7 @@ class GenerateCommand extends Command<int> {
       allowed: [
         'simple',
         'markdown',
+        'slack-markdown',
       ],
     );
   }
@@ -215,6 +216,8 @@ class GenerateCommand extends Command<int> {
     switch (argResult) {
       case 'markdown':
         return MarkdownPrinter();
+      case 'slack-markdown':
+        return SlackMarkdownPrinter();
       default:
         return SimplePrinter();
     }
