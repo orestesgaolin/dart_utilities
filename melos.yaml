@@ -2,6 +2,7 @@ name: dart_utiliites
 repository: https://github.com/orestesgaolin/dart_utiliites
 packages:
   - changelog_cli
+  - slack_cli
 command:
   version:
     workspaceChangelog: false
