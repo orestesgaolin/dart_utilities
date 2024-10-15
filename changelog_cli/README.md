@@ -51,6 +51,9 @@ changelog_cli generate --path ~/Projects/my-app --start 1.0.0 --end 1.1.0 --vers
 
 # or with custom formatting
 changelog_cli generate --path packages/something --start $CM_PREVIOUS_COMMIT --version "Version $BUILD_VERSION ($PROJECT_BUILD_NUMBER)" --printer slack-markdown --group-by date-asc --date-format-locale en_US --date-format yyyy-MM-dd
+
+# for monorepos tagged with my_package-x.y.z pattern
+changelog_cli generate --path lib/packages/my_package --auto true --auto-tag-glob-pattern "my_package*"
 ```
 
 You can get the previous tag using git command and then pass it to `changelog_cli`:
