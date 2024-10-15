@@ -1,3 +1,9 @@
+## 0.4.0
+
+**Features**
+
+- **changelog_cli**: add support for glob patterns when detecting the previous tag automatically
+
 ## 0.3.0
 
 **Features**

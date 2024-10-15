@@ -7,6 +7,9 @@ on:
 
 jobs:
   build_changelog_cli:
+    defaults:
+      run:
+        working-directory: changelog_cli
     name: Build changelog_cli
     strategy:
       matrix:
@@ -22,34 +25,33 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: dart-lang/setup-dart@v1
-      - run: cd changelog_cli
       - run: dart pub get
       - run: mkdir build
       - run: mkdir build/${{ matrix.os }}
       - run: dart compile exe bin/changelog_cli.dart -o build/${{ matrix.os }}/${{ matrix.binary-name }}
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: bin-${{ matrix.os }}
-          path: build/${{ matrix.os }}
+          path: changelog_cli/build/${{ matrix.os }}/${{ matrix.binary-name }}
 
-    release:
-      needs: build_changelog_cli
-      name: Create GitHub Release
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/download-artifact@v2
-          with:
-            name: bin-ubuntu-latest
-            path: bin-linux
-        - uses: actions/download-artifact@v2
-          with:
-            name: bin-macos-latest
-            path: bin-macos
-        - uses: actions/download-artifact@v2
-          with:
-            name: bin-windows-latest
-            path: bin-windows
-        - uses: softprops/action-gh-release@v1
-          with:
-            draft: true
-            files: bin-*/*
+  upload_artifacts:
+    needs: build_changelog_cli
+    name: Create GitHub Release and Upload Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: bin-ubuntu-latest
+          path: bin-linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: bin-macos-latest
+          path: bin-macos
+      - uses: actions/download-artifact@v4
+        with:
+          name: bin-windows-latest
+          path: bin-windows
+      - uses: softprops/action-gh-release@v1
+        with:
+          draft: true
+          files: bin-*/*
