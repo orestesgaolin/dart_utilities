@@ -13,14 +13,16 @@ jobs:
     name: Build changelog_cli
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
         include:
-          - binary-name: changelog_cli
+          - binary-name: changelog_cli_linux
             os: ubuntu-latest
           - binary-name: changelog_cli.exe
             os: windows-latest
-          - binary-name: changelog_cli
+          - binary-name: changelog_cli_macos
             os: macos-latest
+          - binary-name: changelog_cli_macos_x86
+            os: macos-13
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
