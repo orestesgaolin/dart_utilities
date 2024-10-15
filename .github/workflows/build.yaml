@@ -53,6 +53,10 @@ jobs:
         with:
           name: bin-windows-latest
           path: bin-windows
+      - uses: actions/download-artifact@v4
+        with:
+          name: bin-macos-13
+          path: bin-macos-x86
       - uses: softprops/action-gh-release@v1
         with:
           draft: true
