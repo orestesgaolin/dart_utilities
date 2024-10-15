@@ -74,8 +74,10 @@ void main() {
 
       final image = parseImageText(testString);
       expect(image.altText, 'this is image');
-      expect(image.url,
-          'https://assets3.thrillist.com/v1/image/1682388/size/tl-horizontal_main.jpg');
+      expect(
+        image.url,
+        'https://assets3.thrillist.com/v1/image/1682388/size/tl-horizontal_main.jpg',
+      );
     });
   });
 
