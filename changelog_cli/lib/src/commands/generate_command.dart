@@ -42,7 +42,9 @@ class GenerateCommand extends Command<int> {
     argParser.addOption(
       'path',
       abbr: 'p',
-      help: 'Path to the package',
+      help: 'Path to the git repository or folder in that repository. '
+          'Providing a subdirectory will limit the changelog to '
+          'that subdirectory.',
       defaultsTo: '.',
     );
     argParser.addOption(
@@ -178,7 +180,7 @@ class GenerateCommand extends Command<int> {
       if (start?.isNotEmpty == true) {
         final endRef = end?.isNotEmpty == true ? end! : 'HEAD';
         final commitsRaw = await gitDir.runCommand(
-          ['rev-list', '--format=raw', endRef, '^$start'],
+          ['rev-list', '--format=raw', endRef, '^$start', path],
         );
         final commits = Commit.parseRawRevList(commitsRaw.stdout as String);
         return commits;
