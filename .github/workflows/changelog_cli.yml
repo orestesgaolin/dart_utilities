@@ -22,7 +22,7 @@ jobs:
         run: dart pub get
 
       - name: Activate the changelog_cli
-        run: dart pub global activate --source=path changelog_cli
+        run: dart pub global activate --source=path .
 
       - name: Analyze project source
         run: dart analyze
