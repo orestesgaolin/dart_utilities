@@ -1,3 +1,13 @@
+## 0.3.0
+
+**Features**
+
+- **changelog_cli**: enhance generate command with new options for grouping and formatting changelog entries (`--group-by`, `--date-format`, `--date-format-locale`) (2024-10-15)
+
+**Refactor**
+
+- **changelog_cli**: use --path option to limit the commits to the provided directory (2024-10-15)
+
 ## 0.2.0
 
 **Features**
