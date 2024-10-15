@@ -7,11 +7,13 @@ class ChangelogEntry extends Equatable {
     required this.conventionalCommit,
     required this.ref,
     required this.commit,
+    required this.date,
   });
 
   final ConventionalCommit conventionalCommit;
   final String ref;
   final Commit commit;
+  final DateTime? date;
 
   String get message =>
       conventionalCommit.description ?? conventionalCommit.header;
@@ -22,5 +24,22 @@ class ChangelogEntry extends Equatable {
         conventionalCommit,
         ref,
         commit,
+        date,
+      ];
+}
+
+class ChangelogEntryGroup extends Equatable {
+  const ChangelogEntryGroup({
+    required this.entries,
+    required this.type,
+  });
+
+  final List<ChangelogEntry> entries;
+  final String type;
+
+  @override
+  List<Object?> get props => [
+        entries,
+        type,
       ];
 }

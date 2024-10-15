@@ -3,6 +3,7 @@
 import 'package:args/command_runner.dart';
 import 'package:changelog_cli/src/model/model.dart';
 import 'package:changelog_cli/src/printers/printers.dart';
+import 'package:changelog_cli/src/processors/preprocessor.dart';
 import 'package:conventional_commit/conventional_commit.dart';
 import 'package:git/git.dart';
 import 'package:mason_logger/mason_logger.dart';
@@ -20,12 +21,12 @@ class GenerateCommand extends Command<int> {
     argParser.addOption(
       'start',
       abbr: 's',
-      help: 'Start git reference (e.g. commit SHA)',
+      help: 'Start git reference (e.g. commit SHA or tag)',
     );
     argParser.addOption(
       'end',
       abbr: 'e',
-      help: 'End git reference (e.g. commit SHA)',
+      help: 'End git reference (e.g. commit SHA or tag)',
     );
     argParser.addMultiOption(
       'include',
@@ -50,7 +51,7 @@ class GenerateCommand extends Command<int> {
     argParser.addOption(
       'version',
       abbr: 'v',
-      help: 'Manually specify version',
+      help: 'Manually specify version printed in the header of the changelog',
       defaultsTo: '',
     );
     argParser.addOption(
@@ -78,6 +79,29 @@ class GenerateCommand extends Command<int> {
         'slack-markdown',
       ],
     );
+    argParser.addOption(
+      'group-by',
+      abbr: 'g',
+      help: 'Group entries by type',
+      allowed: [
+        'date-asc',
+        'date-desc',
+        'scope-asc',
+        'scope-desc',
+      ],
+    );
+    argParser.addOption(
+      'date-format',
+      help: 'Date format, providing empty skips date formatting. \nNeeds '
+          'to be valid ISO date format e.g. yyyy-MM-dd, yyyy-MM-dd HH:mm:ss. '
+          'By default it does not print any dates. Uses system-default locale.',
+      defaultsTo: '',
+    );
+    argParser.addOption(
+      'date-format-locale',
+      help: 'Date format passed to the date formatting, expected format: xx_XX',
+      defaultsTo: 'en_US',
+    );
   }
 
   @override
@@ -91,25 +115,25 @@ class GenerateCommand extends Command<int> {
 
   @override
   Future<int> run() async {
-    final start = argResults?['start'] as String?;
-    final end = argResults?['end'] as String?;
-    final include = argResults?['include'] as List<String>? ?? [];
-    final version = argResults?['version'] as String;
-    final limit = int.tryParse(argResults?['limit'] as String? ?? '');
+    if (argResults == null) {
+      return ExitCode.usage.code;
+    }
+
+    final configuration = GenerateConfiguration.fromArgs(argResults!);
 
     final path = await getGitPath();
 
     if (path != null) {
       final String? startRef;
-      if (argResults?['auto'] == true) {
+      if (configuration.auto) {
         startRef = await getLastTag(path: path);
       } else {
-        startRef = start;
+        startRef = configuration.start;
       }
 
       final commits = await getCommits(
         start: startRef,
-        end: end,
+        end: configuration.end,
         path: path,
       );
       if (commits.isEmpty) {
@@ -122,12 +146,13 @@ class GenerateCommand extends Command<int> {
         final conventionalCommit = ConventionalCommit.tryParse(v.value.message);
 
         if (conventionalCommit != null) {
-          if (include.contains(conventionalCommit.type)) {
+          if (configuration.include.contains(conventionalCommit.type)) {
             list.add(
               ChangelogEntry(
                 conventionalCommit: conventionalCommit,
                 ref: v.key,
                 commit: v.value,
+                date: parseDate(v.value.author),
               ),
             );
           }
@@ -135,16 +160,14 @@ class GenerateCommand extends Command<int> {
       }
       _logger.detail('Found ${list.length} conventional commits');
 
-      final printer = getPrinter(argResults?['printer'] as String?);
+      final processedList = Preprocessor.processGitHistory(list, configuration);
 
-      final output = printer.print(
-        entries: list,
-        version: version,
-        types: include,
-      );
+      final printer = getPrinter(configuration);
 
-      if (limit != null && limit > 0) {
-        final limitClamped = limit.clamp(0, output.length);
+      final output = printer.print(entries: processedList);
+
+      if (configuration.limit > 0) {
+        final limitClamped = configuration.limit.clamp(0, output.length);
         _logger.info(output.substring(0, limitClamped));
       } else {
         _logger.info(output);
@@ -214,14 +237,25 @@ class GenerateCommand extends Command<int> {
     }
   }
 
-  Printer getPrinter(String? argResult) {
-    switch (argResult) {
-      case 'markdown':
-        return MarkdownPrinter();
-      case 'slack-markdown':
-        return SlackMarkdownPrinter();
-      default:
-        return SimplePrinter();
+  Printer getPrinter(GenerateConfiguration configuration) {
+    switch (configuration.printer) {
+      case PrinterType.markdown:
+        return MarkdownPrinter(configuration: configuration);
+      case PrinterType.slackMarkdown:
+        return SlackMarkdownPrinter(configuration: configuration);
+      case PrinterType.simple:
+        return SimplePrinter(configuration: configuration);
     }
   }
+}
+
+DateTime? parseDate(String gitAuthor) {
+  final author = gitAuthor.split(' ');
+  final oneBeforeLast = author.length - 2;
+  final date = author[oneBeforeLast];
+  final seconds = int.tryParse(date);
+  if (seconds != null) {
+    return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+  }
+  return null;
 }

@@ -5,17 +5,16 @@ import 'package:changelog_cli/src/printers/printers.dart';
 import 'package:collection/collection.dart';
 
 class MarkdownPrinter extends Printer {
-  MarkdownPrinter();
+  MarkdownPrinter({required super.configuration});
 
   @override
   String print({
-    required List<ChangelogEntry> entries,
-    String? version,
-    required List<String> types,
+    required List<ChangelogEntryGroup> entries,
   }) {
-    final groupedBy = entries.groupListsBy((e) => e.type);
+    final version = configuration.version;
+    final types = configuration.include;
     final buffer = StringBuffer();
-    if (version != null && version.isNotEmpty) {
+    if (version.isNotEmpty) {
       buffer.writeln('## $version');
     } else {
       buffer.writeln('## Changes');
@@ -23,18 +22,24 @@ class MarkdownPrinter extends Printer {
     buffer.writeln();
 
     for (final type in types) {
-      final group = groupedBy[type];
+      final group = entries.firstWhereOrNull((t) => t.type == type);
       if (group != null) {
-        final title = mapping[type] ?? type;
+        final title = typeNameMapping[type] ?? type;
         buffer.writeln('**$title**');
         buffer.writeln();
-        for (final entry in group) {
+        for (final entry in group.entries) {
           buffer.write('- ');
           if (entry.conventionalCommit.scopes.isNotEmpty) {
             final scopes = entry.conventionalCommit.scopes.join(', ');
             buffer.write('**$scopes**: ');
           }
-          buffer.writeln(entry.message);
+          if (entry.date != null && configuration.dateFormat.isNotEmpty) {
+            buffer.write(entry.message);
+            final dateFormatted = configuration.formatDateTime(entry.date);
+            buffer.writeln(' ($dateFormatted)');
+          } else {
+            buffer.writeln(entry.message);
+          }
         }
         buffer.writeln();
       }
