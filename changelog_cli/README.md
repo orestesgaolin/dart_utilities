@@ -35,11 +35,22 @@ brew install changelog_cli
 
 ## Usage
 
+Get usage information:
+
+```sh
+changelog_cli generate --help
+```
+
+Generate a changelog:
+
 ```sh
 changelog_cli generate
 
-# or
+# or more elaborate
 changelog_cli generate --path ~/Projects/my-app --start 1.0.0 --end 1.1.0 --version 1.1.0 --limit 2000 --printer markdown
+
+# or with custom formatting
+changelog_cli generate --path packages/something --start $CM_PREVIOUS_COMMIT --version "Version $BUILD_VERSION ($PROJECT_BUILD_NUMBER)" --printer slack-markdown --group-by date-asc --date-format-locale en_US --date-format yyyy-MM-dd
 ```
 
 You can get the previous tag using git command and then pass it to `changelog_cli`:
