@@ -13,7 +13,9 @@ Supported commands:
 - `post` - sends a message to Slack channel
 - `update` - updates the CLI
 
-## Getting Started 🚀
+## Installation
+
+### Pub.dev
 
 Activate globally from pub.dev via:
 
@@ -25,6 +27,15 @@ Or locally via:
 
 ```sh
 dart pub global activate --source=path <path to this package>
+```
+
+### Homebrew
+
+You can install the CLI via Homebrew:
+
+```sh
+brew tap orestesgaolin/tap
+brew install slack_cli
 ```
 
 ## Posting messages

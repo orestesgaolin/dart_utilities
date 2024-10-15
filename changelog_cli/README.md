@@ -8,7 +8,9 @@ By default it just generates the changelog based on the whole git history. You c
 
 ---
 
-## Getting Started 🚀
+## Installation
+
+### Pub.dev
 
 If the CLI application is available on [pub](https://pub.dev), activate globally via:
 
@@ -20,6 +22,15 @@ Or locally via:
 
 ```sh
 dart pub global activate --source=path <path to this package>
+```
+
+### Homebrew
+
+You can install the CLI via Homebrew:
+
+```sh
+brew tap orestesgaolin/tap
+brew install changelog_cli
 ```
 
 ## Usage
