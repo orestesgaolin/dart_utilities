@@ -53,6 +53,7 @@ class GenerateConfiguration {
     required this.printer,
     required this.groupBy,
     required this.auto,
+    required this.autoGlobPattern,
     required this.version,
     required this.limit,
     required this.dateFormat,
@@ -68,6 +69,7 @@ class GenerateConfiguration {
     final printer = args['printer'] as String?;
     final groupBy = args['group-by'] as String?;
     final auto = args['auto'] as bool?;
+    final autoGlobPattern = args['auto-tag-glob-pattern'] as String?;
     final version = args['version'] as String?;
     final limit = int.tryParse(args['limit'] as String? ?? '');
     final dateFormat = args['date-format'] as String?;
@@ -87,6 +89,7 @@ class GenerateConfiguration {
       printer: matchingPrinter,
       groupBy: matchingGroupBy,
       auto: auto ?? false,
+      autoGlobPattern: autoGlobPattern ?? '',
       version: version ?? '',
       limit: limit ?? 0,
       dateFormat: dateFormat ?? '',
@@ -100,6 +103,7 @@ class GenerateConfiguration {
   final PrinterType printer;
   final GroupBy groupBy;
   final bool auto;
+  final String autoGlobPattern;
   final String version;
   final int limit;
   final String dateFormat;
@@ -120,6 +124,7 @@ class GenerateConfiguration {
         printer,
         groupBy,
         auto,
+        autoGlobPattern,
         version,
         limit,
         dateFormat,
@@ -137,6 +142,7 @@ class GenerateConfiguration {
           printer == other.printer &&
           groupBy == other.groupBy &&
           auto == other.auto &&
+          autoGlobPattern == other.autoGlobPattern &&
           version == other.version &&
           limit == other.limit &&
           dateFormat == other.dateFormat;

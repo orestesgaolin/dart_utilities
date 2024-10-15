@@ -69,6 +69,14 @@ class GenerateCommand extends Command<int> {
       defaultsTo: false,
     );
     argParser.addOption(
+      'auto-tag-glob-pattern',
+      help: 'If [auto] is set to true, then you can pass pattern that will be '
+          'used when detecting previous tag.\nFor instance if there is '
+          'a monorepo with releases tagged with package_a-1.0.0 and '
+          'library_b-2.0.0, then you can pass "package_a*" glob pattern, so '
+          'that git describe will include only tags matching the pattern.',
+    );
+    argParser.addOption(
       'printer',
       abbr: 'P',
       help: 'Select output printer',
@@ -126,7 +134,8 @@ class GenerateCommand extends Command<int> {
     if (path != null) {
       final String? startRef;
       if (configuration.auto) {
-        startRef = await getLastTag(path: path);
+        startRef = await getLastTag(
+            path: path, pattern: configuration.autoGlobPattern);
       } else {
         startRef = configuration.start;
       }
@@ -219,6 +228,7 @@ class GenerateCommand extends Command<int> {
 
   Future<String?> getLastTag({
     required String path,
+    required String pattern,
   }) async {
     try {
       final gitDir = await GitDir.fromExisting(path, allowSubdirectory: true);
@@ -227,6 +237,7 @@ class GenerateCommand extends Command<int> {
         'describe',
         '--tags',
         '--abbrev=0',
+        if (pattern.isNotEmpty) '--match=$pattern',
       ]);
 
       final tag = (commitsRaw.stdout as String).replaceAll('\n', '');
