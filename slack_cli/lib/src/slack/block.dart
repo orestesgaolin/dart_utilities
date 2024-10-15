@@ -1,3 +1,4 @@
+// ignore: one_member_abstracts
 abstract class Block {
   Map<String, dynamic> toJson();
 }
@@ -57,7 +58,7 @@ class HeaderBlock extends Block {
   @override
   Map<String, dynamic> toJson() => {
         'type': 'header',
-        'text': {'type': 'plain_text', 'text': text}
+        'text': {'type': 'plain_text', 'text': text},
       };
 }
 
@@ -163,15 +164,15 @@ class SectionBlock extends Block {
 /// A `video` block is designed to embed videos in all app surfaces (e.g. link unfurls, messages, modals, App Home) - anywhere you can put blocks.
 class VideoBlock extends Block {
   VideoBlock({
+    required this.title,
+    required this.thumbnailUrl,
+    required this.videoUrl,
     this.altText,
     this.authorName,
     this.description,
     this.providerIconUrl,
     this.providerName,
-    required this.title,
     this.titleUrl,
-    required this.thumbnailUrl,
-    required this.videoUrl,
   });
 
   /// A tooltip for the video.
