@@ -1,3 +1,9 @@
+## 0.5.0
+
+**Features**
+
+- **changelog_cli**: add support for linking Jira tickets when jira-url option provided
+
 ## 0.4.0
 
 **Features**
