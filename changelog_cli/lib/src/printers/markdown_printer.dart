@@ -2,6 +2,7 @@
 
 import 'package:changelog_cli/src/model/changelog_entry.dart';
 import 'package:changelog_cli/src/printers/printers.dart';
+import 'package:changelog_cli/src/processors/processors.dart';
 import 'package:collection/collection.dart';
 
 class MarkdownPrinter extends Printer {
@@ -33,12 +34,24 @@ class MarkdownPrinter extends Printer {
             final scopes = entry.conventionalCommit.scopes.join(', ');
             buffer.write('**$scopes**: ');
           }
+
+          var message = entry.message;
+          if (configuration.jiraUrl.isNotEmpty) {
+            message = CommitMessageProcessor.processJiraUrls(
+              message,
+              configuration,
+              (url, title) {
+                return '[$title]($url)';
+              },
+            );
+          }
+
           if (entry.date != null && configuration.dateFormat.isNotEmpty) {
-            buffer.write(entry.message);
+            buffer.write(message);
             final dateFormatted = configuration.formatDateTime(entry.date);
             buffer.writeln(' ($dateFormatted)');
           } else {
-            buffer.writeln(entry.message);
+            buffer.writeln(message);
           }
         }
         buffer.writeln();

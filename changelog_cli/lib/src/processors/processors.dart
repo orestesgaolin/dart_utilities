@@ -72,3 +72,66 @@ class Preprocessor {
     return filteredEntries;
   }
 }
+
+class CommitMessageProcessor {
+  static String processJiraUrls(
+    String message,
+    GenerateConfiguration configuration,
+    String Function(String url, String title) urlBuilder,
+  ) {
+    const regex = r'\b[A-Z][A-Z0-9_]+-[1-9][0-9]*';
+    final matches = RegExp(regex).allMatches(message);
+    if (matches.isEmpty) {
+      return message;
+    }
+    final url = configuration.jiraUrl;
+
+    var updatedMessage = message;
+    for (final match in matches) {
+      final ticket = match.group(0);
+      if (ticket == null) {
+        continue;
+      }
+      final uri = Uri.parse(url);
+      if (uri.scheme != 'https') {
+        throw Exception('Jira URL must be https');
+      }
+      if (uri.host.isEmpty) {
+        throw Exception('Jira URL must have host');
+      }
+      final newUri = uri.appendUriComponent(ticket);
+
+      updatedMessage = message.replaceAll(
+        ticket,
+        urlBuilder(newUri.toString(), ticket),
+      );
+    }
+    return updatedMessage;
+  }
+}
+
+extension UriExtension on Uri {
+  /// Appends a list of path components to the URI.
+  Uri appendUriComponents(
+    List<String> components, {
+    bool isDirectory = false,
+  }) {
+    var s = toString();
+    if (s.endsWith('/')) {
+      s = s.substring(0, s.length - 1);
+    }
+    for (final comp in components) {
+      // ignore: use_string_buffers
+      s += '/${Uri.encodeComponent(comp)}';
+    }
+    if (isDirectory) {
+      s += '/';
+    }
+    return Uri.parse(s);
+  }
+
+  /// Appends a path component to the URI.
+  Uri appendUriComponent(String component, {bool isDirectory = false}) {
+    return appendUriComponents([component], isDirectory: isDirectory);
+  }
+}

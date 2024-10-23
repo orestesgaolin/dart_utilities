@@ -57,6 +57,7 @@ class GenerateConfiguration {
     required this.version,
     required this.limit,
     required this.dateFormat,
+    required this.jiraUrl,
   });
 
   factory GenerateConfiguration.fromArgs(
@@ -81,6 +82,8 @@ class GenerateConfiguration {
     final locale = args['date-format-locale'] as String? ?? 'en_US';
     Intl.defaultLocale = locale;
 
+    final jiraUrl = args['jira-url'] as String? ?? '';
+
     return GenerateConfiguration(
       start: start ?? '',
       end: end ?? '',
@@ -93,6 +96,7 @@ class GenerateConfiguration {
       version: version ?? '',
       limit: limit ?? 0,
       dateFormat: dateFormat ?? '',
+      jiraUrl: jiraUrl,
     );
   }
 
@@ -107,6 +111,7 @@ class GenerateConfiguration {
   final String version;
   final int limit;
   final String dateFormat;
+  final String jiraUrl;
 
   String formatDateTime(DateTime? date) {
     if (date == null || dateFormat.isEmpty) {
@@ -128,6 +133,7 @@ class GenerateConfiguration {
         version,
         limit,
         dateFormat,
+        jiraUrl,
       );
 
   @override
@@ -145,5 +151,6 @@ class GenerateConfiguration {
           autoGlobPattern == other.autoGlobPattern &&
           version == other.version &&
           limit == other.limit &&
-          dateFormat == other.dateFormat;
+          dateFormat == other.dateFormat &&
+          jiraUrl == other.jiraUrl;
 }

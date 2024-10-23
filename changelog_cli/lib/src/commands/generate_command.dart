@@ -3,7 +3,7 @@
 import 'package:args/command_runner.dart';
 import 'package:changelog_cli/src/model/model.dart';
 import 'package:changelog_cli/src/printers/printers.dart';
-import 'package:changelog_cli/src/processors/preprocessor.dart';
+import 'package:changelog_cli/src/processors/processors.dart';
 import 'package:conventional_commit/conventional_commit.dart';
 import 'package:git/git.dart';
 import 'package:mason_logger/mason_logger.dart';
@@ -109,6 +109,13 @@ class GenerateCommand extends Command<int> {
       'date-format-locale',
       help: 'Date format passed to the date formatting, expected format: xx_XX',
       defaultsTo: 'en_US',
+    );
+    argParser.addOption(
+      'jira-url',
+      help: 'When provided, the command will try to detect issue numbers e.g. '
+          'AB-123 or CD-1234 and some printers will add links to the issues.',
+      defaultsTo: '',
+      valueHelp: 'https://companyname.atlassian.net/browse/',
     );
   }
 
