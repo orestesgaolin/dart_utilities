@@ -1,3 +1,9 @@
+## 0.5.1
+
+**Bug Fixes**
+
+- **changelog_cli**: use single asterix for bold text in slack-markdown printer
+
 ## 0.5.0
 
 **Features**
