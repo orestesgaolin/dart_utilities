@@ -40,6 +40,7 @@ class SlackCliCommandRunner extends CompletionCommandRunner<int> {
 
     addCommand(PostCommand(logger: _logger));
     addCommand(UpdateCommand(logger: _logger, pubUpdater: _pubUpdater));
+    addCommand(DeleteCommand(logger: _logger));
   }
 
   @override
