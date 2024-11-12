@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:args/command_runner.dart';
 import 'package:http/http.dart' as http;
@@ -81,7 +82,7 @@ class PostCommand extends Command<int> {
     final message = argResults?['message'] as String? ?? '';
     final blocks = argResults?['blocks'] as String? ?? '';
 
-    final response = await postMessage(
+    final responses = await postMessage(
       token,
       channel,
       message,
@@ -90,11 +91,19 @@ class PostCommand extends Command<int> {
       unfurlLinks: argResults?['unfurl-links'] == true,
     );
 
-    _logger.info(response);
-    return ExitCode.success.code;
+    for (final response in responses) {
+      _logger.info(
+        response.success
+            ? 'Message sent successfully to channel ${response.channel} with timestamp ${response.ts}'
+            : 'Error sending message: ${response.error}',
+      );
+    }
+    return responses.any((e) => !e.success)
+        ? ExitCode.software.code
+        : ExitCode.success.code;
   }
 
-  Future<String> postMessage(
+  Future<List<PostCommandResponse>> postMessage(
     String token,
     String channel,
     String message,
@@ -105,26 +114,82 @@ class PostCommand extends Command<int> {
     final url = Uri.parse('https://slack.com/api/chat.postMessage');
 
     final parsedBlocks = parseBlocks(blocks, logger: _logger);
-    final response = await http.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
-      body: {
-        'channel': channel,
-        'text': message,
-        'unfurl_media': unfurlMedia.toString(),
-        'unfurl_links': unfurlLinks.toString(),
-        'blocks': jsonEncode(parsedBlocks),
-      },
-    );
-    if (response.statusCode == 200) {
-      _logger.detail('Response: ${response.body}');
-      return 'Message sent successfully';
-    } else {
-      return 'Error sending message: ${response.body}';
+
+    // need to split into multiple messages of up to 50 blocks
+    final numberOfMessages = (parsedBlocks.length / 50).ceil();
+
+    final responses = <PostCommandResponse>[];
+    for (var messageIndex = 0;
+        messageIndex < numberOfMessages;
+        messageIndex++) {
+      final blocksSublist = parsedBlocks.sublist(
+        messageIndex * 50,
+        math.min((messageIndex + 1) * 50, parsedBlocks.length),
+      );
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+        body: {
+          'channel': channel,
+          'text': message,
+          'unfurl_media': unfurlMedia.toString(),
+          'unfurl_links': unfurlLinks.toString(),
+          'blocks': jsonEncode(blocksSublist),
+        },
+      );
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        if (body['ok'] == true) {
+          _logger
+            ..detail('Response: $body')
+            ..info(
+              'Message sent successfully (${messageIndex + 1}/$numberOfMessages)',
+            );
+          responses.add(
+            PostCommandResponse(
+              success: true,
+              error: null,
+              channel: body['channel'] as String,
+              ts: body['ts'] as String,
+            ),
+          );
+        } else {
+          _logger.err('Error sending message: $body');
+          responses.add(
+            PostCommandResponse(
+              success: false,
+              error: body['error'] as String,
+            ),
+          );
+        }
+      } else {
+        _logger.err('Error sending message: ${response.body}');
+        responses.add(
+          PostCommandResponse(
+            success: false,
+            error: response.body,
+          ),
+        );
+      }
     }
+    return responses;
   }
+}
+
+class PostCommandResponse {
+  PostCommandResponse({
+    required this.success,
+    required this.error,
+    this.channel,
+    this.ts,
+  });
+
+  final bool success;
+  final String? error;
+  final String? channel;
+  final String? ts;
 }
 
 List<Block> parseBlocks(String block, {Logger? logger}) {
@@ -163,12 +228,8 @@ List<Block> parseBlocks(String block, {Logger? logger}) {
         case 'header':
           sections.add(HeaderBlock(text: text));
         case 'text':
-          final formattedText = text.replaceAll(r'\n', '\n');
-          sections.add(
-            SectionBlock(
-              text: formattedText,
-            ),
-          );
+          final parsedSections = parseText(text, logger);
+          sections.addAll(parsedSections);
         case 'img':
           final image = parseImageText(block);
           sections.add(
@@ -225,6 +286,64 @@ List<Block> parseBlocks(String block, {Logger? logger}) {
             ),
           );
       }
+    }
+  }
+  return sections;
+}
+
+List<Block> parseText(String text, Logger? logger) {
+  final sections = <Block>[];
+  final formattedText = text.replaceAll(r'\n', '\n');
+  if (formattedText.length > 2999) {
+    logger?.detail(
+      'Need to split block into segments of 3000 characters',
+    );
+    if (formattedText.length > 2999) {
+      logger?.detail(
+        'Splitting block into segments of 3000 characters at whitespace',
+      );
+      final chunks = <String>[];
+      var currentPosition = 0;
+
+      while (currentPosition < formattedText.length) {
+        var endPosition =
+            math.min(currentPosition + 2999, formattedText.length);
+
+        if (endPosition < formattedText.length) {
+          // Look for last whitespace within the 3000 char limit
+          final lastWhitespace =
+              formattedText.lastIndexOf(RegExp(r'\s'), endPosition);
+
+          // If we found a whitespace and it's after our current position
+          if (lastWhitespace > currentPosition) {
+            endPosition =
+                lastWhitespace + 1; // Include the whitespace in current chunk
+          }
+          // If no whitespace found, we'll have to split at 3000 chars
+        }
+
+        final chunk = formattedText.substring(currentPosition, endPosition);
+        chunks.add(chunk);
+        currentPosition = endPosition;
+      }
+
+      for (final chunk in chunks) {
+        if (chunk.trim().isNotEmpty) {
+          sections.add(
+            SectionBlock(
+              text: chunk,
+            ),
+          );
+        }
+      }
+    }
+  } else {
+    if (formattedText.trim().isNotEmpty) {
+      sections.add(
+        SectionBlock(
+          text: formattedText,
+        ),
+      );
     }
   }
   return sections;

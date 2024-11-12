@@ -37,6 +37,9 @@ void main() {
               '[fields=Text fields _use_ *markdown*=and are <https://google.com|separated> with=equal sign]'
               '[button_section=Text on the left side url=http://pub.dev title=Button title]'
               '[button=Button text url=http://pub.dev]'
+              '[text=Long text long text long text long text long text long text long text]'
+              '[text=Long text long text long text long text long text long text long text]'
+              '[text=End of message]'
               '[context=This is _tiny_ message shown below]',
         ],
       );
@@ -65,6 +68,51 @@ void main() {
       expect(blocks[5], isA<SectionBlock>());
       expect(blocks[6], isA<SectionBlock>());
     });
+
+    test(
+      'splits texts longer than 3000 characters into multiple sections',
+      () {
+        final longText = 'word ' * 1000;
+        final testString = '[text=$longText]';
+
+        final blocks = parseBlocks(testString);
+
+        // Should create multiple blocks since text > 3000 chars
+        expect(blocks.length, greaterThan(1));
+        expect(blocks.every((block) => block is SectionBlock), true);
+
+        // Each block should be <= 3000 chars
+        for (final block in blocks) {
+          final sectionBlock = block as SectionBlock;
+          expect(sectionBlock.text?.length, lessThanOrEqualTo(3000));
+        }
+
+        // No words should be split (no blocks should end with non-space character and start with non-space character)
+        for (var i = 0; i < blocks.length - 1; i++) {
+          final currentBlock = blocks[i] as SectionBlock;
+          final nextBlock = blocks[i + 1] as SectionBlock;
+
+          final currentEndsWithPartialWord = !currentBlock.text!.endsWith(' ');
+          final nextStartsWithPartialWord = !nextBlock.text!.startsWith(' ');
+
+          expect(
+            currentEndsWithPartialWord && nextStartsWithPartialWord,
+            false,
+            reason: 'Text should not be split mid-word between blocks',
+          );
+        }
+
+        // Combined text should equal original (after normalizing spaces)
+        final combinedText = blocks
+            .map((block) => (block as SectionBlock).text)
+            .join(' ')
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+        final normalizedOriginal =
+            longText.replaceAll(RegExp(r'\s+'), ' ').trim();
+        expect(combinedText, normalizedOriginal);
+      },
+    );
   });
 
   group('parseImageText', () {
