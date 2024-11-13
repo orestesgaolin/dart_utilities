@@ -8,7 +8,7 @@ import 'package:slack_cli/src/version.dart';
 
 const executableName = 'slack_cli';
 const packageName = 'slack_cli';
-const description = 'A Very Good Project created by Very Good CLI.';
+const description = 'Simple CLI to send Slack messages';
 
 /// {@template slack_cli_command_runner}
 /// A [CommandRunner] for the CLI.
