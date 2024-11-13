@@ -1,6 +1,6 @@
 name: slack_cli
 description: Simple CLI to send Slack messages
-version: 0.2.0
+version: 0.2.1
 repository: https://github.com/orestesgaolin/dart_utilities/tree/main/slack_cli
 screenshots:
   - description: "Example usage of the changelog_cli"

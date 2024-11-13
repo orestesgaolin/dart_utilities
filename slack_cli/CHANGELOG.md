@@ -1,3 +1,9 @@
+# 0.2.1
+
+**Bug Fixes**
+
+- **slack_cli**: make sure messages without blocks but with message param get sent (2024-11-13)
+
 # 0.2.0
 
 **Features**
