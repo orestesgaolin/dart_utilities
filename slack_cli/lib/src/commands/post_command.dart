@@ -116,7 +116,7 @@ class PostCommand extends Command<int> {
     final parsedBlocks = parseBlocks(blocks, logger: _logger);
 
     // need to split into multiple messages of up to 50 blocks
-    final numberOfMessages = (parsedBlocks.length / 50).ceil();
+    final numberOfMessages = math.max(1, (parsedBlocks.length / 50).ceil());
 
     final responses = <PostCommandResponse>[];
     for (var messageIndex = 0;
@@ -136,7 +136,7 @@ class PostCommand extends Command<int> {
           'text': message,
           'unfurl_media': unfurlMedia.toString(),
           'unfurl_links': unfurlLinks.toString(),
-          'blocks': jsonEncode(blocksSublist),
+          if (blocksSublist.isNotEmpty) 'blocks': jsonEncode(blocksSublist),
         },
       );
       if (response.statusCode == 200) {
