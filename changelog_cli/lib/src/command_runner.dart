@@ -29,12 +29,10 @@ const description = 'Command line to generate changelogs';
 /// {@endtemplate}
 class ChangelogCliCommandRunner extends CompletionCommandRunner<int> {
   /// {@macro changelog_cli_command_runner}
-  ChangelogCliCommandRunner({
-    Logger? logger,
-    PubUpdater? pubUpdater,
-  })  : _logger = logger ?? Logger(),
-        _pubUpdater = pubUpdater ?? PubUpdater(),
-        super(executableName, description) {
+  ChangelogCliCommandRunner({Logger? logger, PubUpdater? pubUpdater})
+    : _logger = logger ?? Logger(),
+      _pubUpdater = pubUpdater ?? PubUpdater(),
+      super(executableName, description) {
     // Add root options and flags
     argParser
       ..addFlag(
@@ -144,11 +142,9 @@ class ChangelogCliCommandRunner extends CompletionCommandRunner<int> {
       if (!isUpToDate) {
         _logger
           ..info('')
-          ..info(
-            '''
+          ..info('''
 ${lightYellow.wrap('Update available!')} ${lightCyan.wrap(packageVersion)} \u2192 ${lightCyan.wrap(latestVersion)}
-Run ${lightCyan.wrap('$executableName update')} to update''',
-          );
+Run ${lightCyan.wrap('$executableName update')} to update''');
       }
     } catch (_) {}
   }
@@ -156,30 +152,22 @@ Run ${lightCyan.wrap('$executableName update')} to update''',
   Future<void> trackUsage(String command) async {
     try {
       unawaited(
-        Process.run(
-          'curl',
-          [
-            '-X',
-            'POST',
-            '-H',
-            'Origin: http://changelog.roszkowski.dev',
-            'https://counter.dev/track?id=f9f43cb9-3e5b-4e7b-9f93-b56739d9b1db&page=$command',
-          ],
-          runInShell: true,
-        ),
+        Process.run('curl', [
+          '-X',
+          'POST',
+          '-H',
+          'Origin: http://changelog.roszkowski.dev',
+          'https://counter.dev/track?id=f9f43cb9-3e5b-4e7b-9f93-b56739d9b1db&page=$command',
+        ], runInShell: true),
       );
       unawaited(
-        Process.run(
-          'curl',
-          [
-            '-X',
-            'POST',
-            '-H',
-            'Origin: http://changelog.roszkowski.dev',
-            'https://counter.dev/trackpage?id=f9f43cb9-3e5b-4e7b-9f93-b56739d9b1db&page=$command',
-          ],
-          runInShell: true,
-        ),
+        Process.run('curl', [
+          '-X',
+          'POST',
+          '-H',
+          'Origin: http://changelog.roszkowski.dev',
+          'https://counter.dev/trackpage?id=f9f43cb9-3e5b-4e7b-9f93-b56739d9b1db&page=$command',
+        ], runInShell: true),
       );
     } catch (_) {}
   }
