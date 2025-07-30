@@ -1,4 +1,4 @@
-// Copyright (c) 2022, Very Good Ventures
+// Copyright (c) 2022, Very Good Ventures, Dominik Roszkowski
 // https://verygood.ventures
 //
 // Use of this source code is governed by an MIT-style
@@ -23,7 +23,7 @@ const description = 'Command line to generate changelogs';
 /// {@template changelog_cli_command_runner}
 /// A [CommandRunner] for the CLI.
 ///
-/// ```
+/// ```bash
 /// $ changelog_cli --version
 /// ```
 /// {@endtemplate}
@@ -49,6 +49,7 @@ class ChangelogCliCommandRunner extends CompletionCommandRunner<int> {
     // Add sub commands
     addCommand(UpdateCommand(logger: _logger, pubUpdater: _pubUpdater));
     addCommand(GenerateCommand(logger: _logger));
+    addCommand(ConfigCommand(logger: _logger));
   }
 
   @override
@@ -146,7 +147,9 @@ class ChangelogCliCommandRunner extends CompletionCommandRunner<int> {
 ${lightYellow.wrap('Update available!')} ${lightCyan.wrap(packageVersion)} \u2192 ${lightCyan.wrap(latestVersion)}
 Run ${lightCyan.wrap('$executableName update')} to update''');
       }
-    } catch (_) {}
+    } catch (_) {
+      _logger.err('Failed to check for updates');
+    }
   }
 
   Future<void> trackUsage(String command) async {
