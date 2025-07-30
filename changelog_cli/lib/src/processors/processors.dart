@@ -1,14 +1,17 @@
 import 'package:changelog_cli/src/model/model.dart';
 import 'package:collection/collection.dart';
+import 'package:mason_logger/mason_logger.dart';
 
 class Preprocessor {
   Preprocessor();
 
   static List<ChangelogEntryGroup> processGitHistory(
     List<ChangelogEntry> entries,
-    GenerateConfiguration configuration,
-  ) {
+    GenerateConfiguration configuration, {
+    Logger? logger,
+  }) {
     // group by configuration.groupBy
+    logger?.detail('Grouping changelog entries by ${configuration.groupBy}');
     switch (configuration.groupBy) {
       case GroupBy.dateAsc:
         entries.sort((a, b) {
@@ -23,7 +26,6 @@ class Preprocessor {
           }
           return a.date!.compareTo(b.date!);
         });
-        break;
       case GroupBy.dateDesc:
         entries.sort((a, b) {
           if (a.date == null && b.date == null) {
@@ -37,38 +39,42 @@ class Preprocessor {
           }
           return b.date!.compareTo(a.date!);
         });
-        break;
       case GroupBy.scopeAsc:
         entries.sort(
-          (a, b) => a.conventionalCommit.scopes
-              .join()
-              .compareTo(b.conventionalCommit.scopes.join()),
+          (a, b) => a.conventionalCommit.scopes.join().compareTo(b.conventionalCommit.scopes.join()),
         );
-        break;
       case GroupBy.scopeDesc:
         entries.sort(
-          (a, b) => b.conventionalCommit.scopes
-              .join()
-              .compareTo(a.conventionalCommit.scopes.join()),
+          (a, b) => b.conventionalCommit.scopes.join().compareTo(a.conventionalCommit.scopes.join()),
         );
-        break;
     }
 
-    // could be optimized
+    // depending on the grouping:
+
     final groupedEntries = entries.groupListsBy((e) => e.type);
 
     final filteredEntries = <ChangelogEntryGroup>[];
 
     for (final type in configuration.include) {
       final entriesOfType = groupedEntries[type];
+      logger?.detail('Found ${entriesOfType?.length ?? 0} entries of type $type');
 
       if (entriesOfType != null) {
         filteredEntries.add(
           ChangelogEntryGroup(entries: entriesOfType, type: type),
         );
+      } else {
+        logger?.detail('No entries of type $type found');
       }
     }
 
+    // now group by respective configuration.groupBy
+    if (configuration.groupBy != GroupBy.dateAsc && configuration.groupBy != GroupBy.dateDesc) {
+      // if not grouping by date, we can just return the filtered entries
+      return filteredEntries;
+    }
+
+    // TODO(orestesgaolin): implement grouping by date
     return filteredEntries;
   }
 }

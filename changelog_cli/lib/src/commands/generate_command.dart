@@ -31,7 +31,8 @@ class GenerateCommand extends Command<int> {
     argParser.addMultiOption(
       'include',
       abbr: 'i',
-      help: 'List of types of conventional commits to include. '
+      help:
+          'List of types of conventional commits to include. '
           'Order of types defines the order of sections.',
       defaultsTo: [
         'feat',
@@ -43,7 +44,8 @@ class GenerateCommand extends Command<int> {
     argParser.addOption(
       'path',
       abbr: 'p',
-      help: 'Path to the git repository or folder in that repository. '
+      help:
+          'Path to the git repository or folder in that repository. '
           'Providing a subdirectory will limit the changelog to '
           'that subdirectory.',
       defaultsTo: '.',
@@ -57,7 +59,8 @@ class GenerateCommand extends Command<int> {
     argParser.addOption(
       'limit',
       abbr: 'l',
-      help: 'Max length of the changelog '
+      help:
+          'Max length of the changelog '
           '(you can use e.g. 500 for AppStore changelog)',
       defaultsTo: '',
     );
@@ -70,7 +73,8 @@ class GenerateCommand extends Command<int> {
     );
     argParser.addOption(
       'auto-tag-glob-pattern',
-      help: 'If [auto] is set to true, then you can pass pattern that will be '
+      help:
+          'If [auto] is set to true, then you can pass pattern that will be '
           'used when detecting previous tag.\nFor instance if there is '
           'a monorepo with releases tagged with package_a-1.0.0 and '
           'library_b-2.0.0, then you can pass "package_a*" glob pattern, so '
@@ -100,7 +104,8 @@ class GenerateCommand extends Command<int> {
     );
     argParser.addOption(
       'date-format',
-      help: 'Date format, providing empty skips date formatting. \nNeeds '
+      help:
+          'Date format, providing empty skips date formatting. \nNeeds '
           'to be valid ISO date format e.g. yyyy-MM-dd, yyyy-MM-dd HH:mm:ss. '
           'By default it does not print any dates. Uses system-default locale.',
       defaultsTo: '',
@@ -112,7 +117,8 @@ class GenerateCommand extends Command<int> {
     );
     argParser.addOption(
       'jira-url',
-      help: 'When provided, the command will try to detect issue numbers e.g. '
+      help:
+          'When provided, the command will try to detect issue numbers e.g. '
           'AB-123 or CD-1234 and some printers will add links to the issues.',
       defaultsTo: '',
       valueHelp: 'https://companyname.atlassian.net/browse/',
@@ -120,7 +126,8 @@ class GenerateCommand extends Command<int> {
   }
 
   @override
-  String get description => 'Generates the changelog using conventional '
+  String get description =>
+      'Generates the changelog using conventional '
       'commits and provided git references';
 
   @override
@@ -141,8 +148,7 @@ class GenerateCommand extends Command<int> {
     if (path != null) {
       final String? startRef;
       if (configuration.auto) {
-        startRef = await getLastTag(
-            path: path, pattern: configuration.autoGlobPattern);
+        startRef = await getLastTag(path: path, pattern: configuration.autoGlobPattern);
       } else {
         startRef = configuration.start;
       }
@@ -174,15 +180,16 @@ class GenerateCommand extends Command<int> {
           }
         }
       }
-      _logger.detail('Found ${list.length} conventional commits');
+      _logger.detail('Found ${list.length} conventional commits, processing');
 
-      final processedList = Preprocessor.processGitHistory(list, configuration);
+      final processedList = Preprocessor.processGitHistory(list, configuration, logger: _logger);
 
       final printer = getPrinter(configuration);
 
       final output = printer.print(entries: processedList);
 
       if (configuration.limit > 0) {
+        _logger.info('Limiting output to ${configuration.limit} characters');
         final limitClamped = configuration.limit.clamp(0, output.length);
         _logger.info(output.substring(0, limitClamped));
       } else {

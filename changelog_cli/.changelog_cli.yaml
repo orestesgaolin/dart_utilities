@@ -1,0 +1,33 @@
+# Changelog CLI Configuration
+# This file can be named .changelog_cli.yaml and placed in your project root
+# or home directory
+
+changelog:
+  # Git reference settings
+  start: ""  # Start git reference (e.g. commit SHA or tag)
+  end: ""    # End git reference (e.g. commit SHA or tag)
+  path: "."  # Path to the git repository or folder
+
+  # Changelog content settings
+  include:   # List of conventional commit types to include
+    - feat
+    - fix
+    - refactor
+    - perf
+
+  # Output settings
+  printer: simple  # Output format: simple, markdown, slack-markdown
+  version: ""      # Version to display in changelog header
+  limit: 0         # Max length of changelog (0 = no limit)
+
+  # Grouping and formatting
+  group_by: ""           # Group entries: date-asc, date-desc, scope-asc, scope-desc
+  date_format: ""        # Date format (e.g. yyyy-MM-dd)
+  date_format_locale: en_US
+
+  # Auto-detection settings
+  auto: false                    # Automatically detect previous tag
+  auto_tag_glob_pattern: ""      # Pattern for auto tag detection
+
+  # Integration settings
+  jira_url: ""  # JIRA URL for issue linking

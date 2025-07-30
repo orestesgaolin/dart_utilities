@@ -1,0 +1,30 @@
+{
+  "_comment": "Changelog CLI Configuration - JSON format",
+  "_comment2": "This file can be named .changelogrc and placed in your project root or home directory",
+  
+  "changelog": {
+    "start": "",
+    "end": "",
+    "path": ".",
+    
+    "include": [
+      "feat",
+      "fix", 
+      "refactor",
+      "perf"
+    ],
+    
+    "printer": "simple",
+    "version": "",
+    "limit": 0,
+    
+    "group_by": "",
+    "date_format": "",
+    "date_format_locale": "en_US",
+    
+    "auto": false,
+    "auto_tag_glob_pattern": "",
+    
+    "jira_url": ""
+  }
+}

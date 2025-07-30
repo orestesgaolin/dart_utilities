@@ -1,7 +1,11 @@
-// ignore_for_file: avoid_equals_and_hash_code_on_mutable_classes
+// ignore_for_file: avoid_equals_and_hash_code_on_mutable_classes, avoid_dynamic_calls
+
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:intl/intl.dart';
+import 'package:yaml/yaml.dart';
 
 enum GroupBy {
   dateAsc,
@@ -25,11 +29,7 @@ GroupBy getGroupByFromString(String input) {
   }
 }
 
-enum PrinterType {
-  simple,
-  markdown,
-  slackMarkdown;
-}
+enum PrinterType { simple, markdown, slackMarkdown }
 
 PrinterType getPrinterFromString(String input) {
   switch (input) {
@@ -63,32 +63,57 @@ class GenerateConfiguration {
   factory GenerateConfiguration.fromArgs(
     ArgResults args,
   ) {
-    final start = args['start'] as String?;
-    final end = args['end'] as String?;
-    final path = args['path'] as String?;
-    final include = args['include'] as List<String>?;
-    final printer = args['printer'] as String?;
-    final groupBy = args['group-by'] as String?;
-    final auto = args['auto'] as bool?;
-    final autoGlobPattern = args['auto-tag-glob-pattern'] as String?;
-    final version = args['version'] as String?;
-    final limit = int.tryParse(args['limit'] as String? ?? '');
-    final dateFormat = args['date-format'] as String?;
+    // Load configuration from files (if they exist)
+    final configData = _loadConfigurationFiles();
+
+    final start = args['start'] as String? ?? configData['changelog']?['start'] as String?;
+    final end = args['end'] as String? ?? configData['changelog']?['end'] as String?;
+    final path = args['path'] as String? ?? configData['changelog']?['path'] as String?;
+
+    // Handle include list - merge config file with CLI args
+    var include = <String>[];
+    final configInclude = configData['changelog']?['include'];
+    if (configInclude is List) {
+      include = configInclude.cast<String>();
+    }
+    if (include.isEmpty) {
+      final argsInclude = args['include'] as List<String>?;
+      if (argsInclude != null && argsInclude.isNotEmpty) {
+        include = argsInclude;
+      }
+    }
+
+    final printer = args['printer'] as String? ?? configData['changelog']?['printer'] as String?;
+    final groupBy = args['group-by'] as String? ?? configData['changelog']?['group_by'] as String?;
+    final auto = args['auto'] as bool? ?? configData['changelog']?['auto'] as bool?;
+    final autoGlobPattern =
+        args['auto-tag-glob-pattern'] as String? ?? configData['changelog']?['auto_tag_glob_pattern'] as String?;
+    final version = args['version'] as String? ?? configData['changelog']?['version'] as String?;
+
+    final limitArg = args['limit'] as String?;
+    final limitConfig = configData['changelog']?['limit'];
+    int? limit;
+    if (limitArg != null && limitArg.isNotEmpty) {
+      limit = int.tryParse(limitArg);
+    } else if (limitConfig != null) {
+      limit = limitConfig is int ? limitConfig : int.tryParse(limitConfig.toString());
+    }
+
+    final dateFormat = args['date-format'] as String? ?? configData['changelog']?['date_format'] as String?;
+    final jiraUrl = args['jira-url'] as String? ?? configData['changelog']?['jira_url'] as String?;
 
     final matchingPrinter = getPrinterFromString(printer ?? '');
-
     final matchingGroupBy = getGroupByFromString(groupBy ?? '');
 
-    final locale = args['date-format-locale'] as String? ?? 'en_US';
+    final locale =
+        args['date-format-locale'] as String? ?? configData['changelog']?['date_format_locale'] as String? ?? 'en_US';
     Intl.defaultLocale = locale;
-
-    final jiraUrl = args['jira-url'] as String? ?? '';
 
     return GenerateConfiguration(
       start: start ?? '',
       end: end ?? '',
-      path: path ?? '',
-      include: include ?? [],
+      path: path ?? '.',
+      include: include.isNotEmpty ? include : ['feat', 'fix', 'refactor', 'perf'],
       printer: matchingPrinter,
       groupBy: matchingGroupBy,
       auto: auto ?? false,
@@ -96,8 +121,53 @@ class GenerateConfiguration {
       version: version ?? '',
       limit: limit ?? 0,
       dateFormat: dateFormat ?? '',
-      jiraUrl: jiraUrl,
+      jiraUrl: jiraUrl ?? '',
     );
+  }
+
+  /// Loads configuration from various config files in order of precedence:
+  /// 1. .changelog_cli.yaml
+  /// 2. .changelogrc (JSON)
+  /// 3. ~/.changelog_cli.yaml (global)
+  /// 4. ~/.changelogrc (global JSON)
+  static Map<String, dynamic> _loadConfigurationFiles() {
+    final configFiles = [
+      '.changelog_cli.yaml',
+      '.changelogrc',
+      '${_getHomeDirectory()}/.changelog_cli.yaml',
+      '${_getHomeDirectory()}/.changelogrc',
+    ];
+
+    for (final configPath in configFiles) {
+      final file = File(configPath);
+      if (file.existsSync()) {
+        try {
+          final content = file.readAsStringSync();
+          if (configPath.endsWith('.yaml') || configPath.endsWith('.yml')) {
+            final yamlDoc = loadYaml(content);
+            if (yamlDoc is Map) {
+              return Map<String, dynamic>.from(yamlDoc);
+            }
+          } else {
+            // Assume JSON for .changelogrc
+            final jsonDoc = jsonDecode(content);
+            if (jsonDoc is Map) {
+              return Map<String, dynamic>.from(jsonDoc);
+            }
+          }
+        } catch (e) {
+          // Silently continue to next config file if parsing fails
+          continue;
+        }
+      }
+    }
+
+    return {};
+  }
+
+  static String _getHomeDirectory() {
+    final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+    return home ?? '';
   }
 
   final String start;
@@ -122,19 +192,19 @@ class GenerateConfiguration {
 
   @override
   int get hashCode => Object.hash(
-        start,
-        end,
-        path,
-        include,
-        printer,
-        groupBy,
-        auto,
-        autoGlobPattern,
-        version,
-        limit,
-        dateFormat,
-        jiraUrl,
-      );
+    start,
+    end,
+    path,
+    include,
+    printer,
+    groupBy,
+    auto,
+    autoGlobPattern,
+    version,
+    limit,
+    dateFormat,
+    jiraUrl,
+  );
 
   @override
   bool operator ==(Object other) =>
