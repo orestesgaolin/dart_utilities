@@ -1,3 +1,9 @@
+## 0.6.0
+
+**Features**
+
+- add configuration management for changelog generation with YAML and JSON support
+
 ## 0.5.1
 
 **Bug Fixes**
