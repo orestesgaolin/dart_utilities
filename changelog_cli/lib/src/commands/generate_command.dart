@@ -123,6 +123,16 @@ class GenerateCommand extends Command<int> {
       defaultsTo: '',
       valueHelp: 'https://companyname.atlassian.net/browse/',
     );
+    argParser.addOption(
+      'output',
+      abbr: 'o',
+      help:
+          'When provided, the command will write the output to the specified '
+          'file instead of printing it to console. If the file already '
+          'exists, the new changelog will be prepended to the existing content.',
+      defaultsTo: '',
+      valueHelp: 'path/to/file.md',
+    );
   }
 
   @override
@@ -188,12 +198,38 @@ class GenerateCommand extends Command<int> {
 
       final output = printer.print(entries: processedList);
 
+      final String finalOutput;
       if (configuration.limit > 0) {
-        _logger.info('Limiting output to ${configuration.limit} characters');
+        _logger.detail('Limiting output to ${configuration.limit} characters');
         final limitClamped = configuration.limit.clamp(0, output.length);
-        _logger.info(output.substring(0, limitClamped));
+        finalOutput = output.substring(0, limitClamped);
       } else {
-        _logger.info(output);
+        finalOutput = output;
+      }
+
+      // Write to file if output path is provided
+      if (configuration.output.isNotEmpty) {
+        try {
+          final outputFile = File(configuration.output);
+          var contentToWrite = finalOutput;
+
+          // If file exists, prepend new content to existing content
+          if (outputFile.existsSync()) {
+            final existingContent = await outputFile.readAsString();
+            contentToWrite = '$finalOutput\n$existingContent';
+            _logger.info('Prepending changelog to existing file: ${configuration.output}');
+          } else {
+            _logger.info('Creating new changelog file: ${configuration.output}');
+          }
+
+          await outputFile.writeAsString(contentToWrite);
+          _logger.info('Changelog written to ${configuration.output}');
+        } catch (e) {
+          _logger.err('Failed to write to file ${configuration.output}: $e');
+          return ExitCode.ioError.code;
+        }
+      } else {
+        _logger.info(finalOutput);
       }
     } else {
       _logger.warn('Not a Git directory');

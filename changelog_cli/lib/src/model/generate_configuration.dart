@@ -58,6 +58,7 @@ class GenerateConfiguration {
     required this.limit,
     required this.dateFormat,
     required this.jiraUrl,
+    required this.output,
   });
 
   factory GenerateConfiguration.fromArgs(
@@ -182,6 +183,7 @@ class GenerateConfiguration {
   final int limit;
   final String dateFormat;
   final String jiraUrl;
+  final String output;
 
   String formatDateTime(DateTime? date) {
     if (date == null || dateFormat.isEmpty) {

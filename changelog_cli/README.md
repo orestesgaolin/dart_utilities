@@ -83,7 +83,7 @@ Generate a changelog:
 changelog_cli generate
 
 # or more elaborate
-changelog_cli generate --path ~/Projects/my-app --start 1.0.0 --end 1.1.0 --version 1.1.0 --limit 2000 --printer markdown
+changelog_cli generate --path ~/Projects/my-app --start 1.0.0 --end 1.1.0 --version 1.1.0 --limit 2000 --printer markdown --output CHANGELOG.md
 
 # or with custom formatting
 changelog_cli generate --path packages/something --start $CM_PREVIOUS_COMMIT --version "Version $BUILD_VERSION ($PROJECT_BUILD_NUMBER)" --printer slack-markdown --group-by date-asc --date-format-locale en_US --date-format yyyy-MM-dd
@@ -143,6 +143,7 @@ changelog:
   printer: simple # Output format: simple, markdown, slack-markdown
   version: "" # Version to display in changelog header
   limit: 0 # Max length of changelog (0 = no limit)
+  output: "" # Output file path (if empty, prints to console)
 
   # Grouping and formatting
   group_by: "" # Group entries: date-asc, date-desc, scope-asc, scope-desc
@@ -174,7 +175,8 @@ changelog:
     "date_format_locale": "en_US",
     "auto": false,
     "auto_tag_glob_pattern": "",
-    "jira_url": ""
+    "jira_url": "",
+    "output": ""
   }
 }
 ```
