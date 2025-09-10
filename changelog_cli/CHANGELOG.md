@@ -1,3 +1,10 @@
+## 0.8.0
+
+**Features**
+
+- detect reverted commits and mark them as reverted in changelog (e.g. crossed out in markdown)
+
+
 ## 0.7.0
 
 **Features**
