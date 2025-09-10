@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:args/args.dart';
+import 'package:equatable/equatable.dart';
 import 'package:intl/intl.dart';
+import 'package:mason_logger/mason_logger.dart';
 import 'package:yaml/yaml.dart';
 
 enum GroupBy {
@@ -44,7 +46,7 @@ PrinterType getPrinterFromString(String input) {
   }
 }
 
-class GenerateConfiguration {
+class GenerateConfiguration extends Equatable {
   const GenerateConfiguration({
     required this.start,
     required this.end,
@@ -62,14 +64,15 @@ class GenerateConfiguration {
   });
 
   factory GenerateConfiguration.fromArgs(
-    ArgResults args,
-  ) {
+    ArgResults args, [
+    Logger? logger,
+  ]) {
     // Load configuration from files (if they exist)
-    final configData = _loadConfigurationFiles();
+    final configData = _loadConfigurationFiles(logger);
 
-    final start = args['start'] as String? ?? configData['changelog']?['start'] as String?;
-    final end = args['end'] as String? ?? configData['changelog']?['end'] as String?;
-    final path = args['path'] as String? ?? configData['changelog']?['path'] as String?;
+    final start = _getArgValue(args, 'start', configData['changelog']?['start'] as String?, logger);
+    final end = _getArgValue(args, 'end', configData['changelog']?['end'] as String?, logger);
+    final path = _getArgValue(args, 'path', configData['changelog']?['path'] as String?, logger) ?? '.';
 
     // Handle include list - merge config file with CLI args
     var include = <String>[];
@@ -84,46 +87,80 @@ class GenerateConfiguration {
       }
     }
 
-    final printer = args['printer'] as String? ?? configData['changelog']?['printer'] as String?;
-    final groupBy = args['group-by'] as String? ?? configData['changelog']?['group_by'] as String?;
-    final auto = args['auto'] as bool? ?? configData['changelog']?['auto'] as bool?;
+    final printer = _getArgValue(args, 'printer', configData['changelog']?['printer'] as String?, logger) ?? 'simple';
+    final groupBy = _getArgValue(args, 'group-by', configData['changelog']?['group_by'] as String?, logger);
+    final auto = _getBoolArgValue(args, 'auto', configData['changelog']?['auto'] as bool?, logger) ?? false;
     final autoGlobPattern =
-        args['auto-tag-glob-pattern'] as String? ?? configData['changelog']?['auto_tag_glob_pattern'] as String?;
-    final version = args['version'] as String? ?? configData['changelog']?['version'] as String?;
+        _getArgValue(args, 'auto-tag-glob-pattern', configData['changelog']?['auto_tag_glob_pattern'] as String?, logger) ?? '';
+    final version = _getArgValue(args, 'version', configData['changelog']?['version'] as String?, logger) ?? '';
 
-    final limitArg = args['limit'] as String?;
+    final limitArg = _getArgValue(args, 'limit', null, logger);
     final limitConfig = configData['changelog']?['limit'];
-    int? limit;
+    var limit = 0;
     if (limitArg != null && limitArg.isNotEmpty) {
-      limit = int.tryParse(limitArg);
+      limit = int.tryParse(limitArg) ?? 0;
     } else if (limitConfig != null) {
-      limit = limitConfig is int ? limitConfig : int.tryParse(limitConfig.toString());
+      limit = limitConfig is int ? limitConfig : (int.tryParse(limitConfig.toString()) ?? 0);
     }
 
-    final dateFormat = args['date-format'] as String? ?? configData['changelog']?['date_format'] as String?;
-    final jiraUrl = args['jira-url'] as String? ?? configData['changelog']?['jira_url'] as String?;
+    final dateFormat = _getArgValue(args, 'date-format', configData['changelog']?['date_format'] as String?, logger) ?? '';
+    final jiraArg = _getArgValue(args, 'jira-url', null, logger);
+    final jiraUrl = jiraArg ?? configData['changelog']?['jira_url'] as String? ?? '';
+    final outputArg = _getArgValue(args, 'output', null, logger);
+    final output = outputArg ?? configData['changelog']?['output'] as String? ?? '';
 
-    final matchingPrinter = getPrinterFromString(printer ?? '');
+    final matchingPrinter = getPrinterFromString(printer);
     final matchingGroupBy = getGroupByFromString(groupBy ?? '');
+    logger?.detail('Using printer: $matchingPrinter');
+    logger?.detail('Using groupBy: $matchingGroupBy');
 
     final locale =
-        args['date-format-locale'] as String? ?? configData['changelog']?['date_format_locale'] as String? ?? 'en_US';
+        _getArgValue(args, 'date-format-locale', configData['changelog']?['date_format_locale'] as String?, logger) ?? 'en_US';
     Intl.defaultLocale = locale;
 
     return GenerateConfiguration(
       start: start ?? '',
       end: end ?? '',
-      path: path ?? '.',
+      path: path,
       include: include.isNotEmpty ? include : ['feat', 'fix', 'refactor', 'perf'],
       printer: matchingPrinter,
       groupBy: matchingGroupBy,
-      auto: auto ?? false,
-      autoGlobPattern: autoGlobPattern ?? '',
-      version: version ?? '',
-      limit: limit ?? 0,
-      dateFormat: dateFormat ?? '',
-      jiraUrl: jiraUrl ?? '',
+      auto: auto,
+      autoGlobPattern: autoGlobPattern,
+      version: version,
+      limit: limit,
+      dateFormat: dateFormat,
+      jiraUrl: jiraUrl,
+      output: output,
     );
+  }
+
+  /// Helper method to get argument value with proper precedence:
+  /// 1. Explicitly provided argument (not just default value)
+  /// 2. Config file value
+  /// 3. null (so caller can provide final fallback)
+  static String? _getArgValue(ArgResults args, String key, String? configValue, [Logger? logger]) {
+    // Check if the argument was explicitly provided (not just using default)
+    if (args.wasParsed(key)) {
+      final value = args[key] as String?;
+      // Return the explicit value even if it's empty string
+      logger?.detail('Argument "$key" explicitly provided with value: $value');
+      return value;
+    }
+    // If not explicitly provided, use config file value
+    logger?.detail('Argument "$key" not explicitly provided, using config value: $configValue');
+    return configValue;
+  }
+
+  /// Helper method for boolean values
+  static bool? _getBoolArgValue(ArgResults args, String key, bool? configValue, [Logger? logger]) {
+    if (args.wasParsed(key)) {
+      final value = args[key] as bool?;
+      logger?.detail('Argument "$key" explicitly provided with value: $value');
+      return value;
+    }
+    logger?.detail('Argument "$key" not explicitly provided, using config value: $configValue');
+    return configValue;
   }
 
   /// Loads configuration from various config files in order of precedence:
@@ -131,7 +168,7 @@ class GenerateConfiguration {
   /// 2. .changelogrc (JSON)
   /// 3. ~/.changelog_cli.yaml (global)
   /// 4. ~/.changelogrc (global JSON)
-  static Map<String, dynamic> _loadConfigurationFiles() {
+  static Map<String, dynamic> _loadConfigurationFiles([Logger? logger]) {
     final configFiles = [
       '.changelog_cli.yaml',
       '.changelogrc',
@@ -142,21 +179,25 @@ class GenerateConfiguration {
     for (final configPath in configFiles) {
       final file = File(configPath);
       if (file.existsSync()) {
+        logger?.detail('Loading configuration from $configPath');
         try {
           final content = file.readAsStringSync();
           if (configPath.endsWith('.yaml') || configPath.endsWith('.yml')) {
             final yamlDoc = loadYaml(content);
             if (yamlDoc is Map) {
+              logger?.detail('Parsed YAML configuration: $yamlDoc');
               return Map<String, dynamic>.from(yamlDoc);
             }
           } else {
             // Assume JSON for .changelogrc
             final jsonDoc = jsonDecode(content);
             if (jsonDoc is Map) {
+              logger?.detail('Parsed JSON configuration: $jsonDoc');
               return Map<String, dynamic>.from(jsonDoc);
             }
           }
         } catch (e) {
+          logger?.err('Failed to parse configuration file $configPath: $e');
           // Silently continue to next config file if parsing fails
           continue;
         }
@@ -193,7 +234,10 @@ class GenerateConfiguration {
   }
 
   @override
-  int get hashCode => Object.hash(
+  bool? get stringify => true;
+
+  @override
+  List<Object?> get props => [
     start,
     end,
     path,
@@ -206,23 +250,6 @@ class GenerateConfiguration {
     limit,
     dateFormat,
     jiraUrl,
-  );
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is GenerateConfiguration &&
-          runtimeType == other.runtimeType &&
-          start == other.start &&
-          end == other.end &&
-          path == other.path &&
-          include == other.include &&
-          printer == other.printer &&
-          groupBy == other.groupBy &&
-          auto == other.auto &&
-          autoGlobPattern == other.autoGlobPattern &&
-          version == other.version &&
-          limit == other.limit &&
-          dateFormat == other.dateFormat &&
-          jiraUrl == other.jiraUrl;
+    output,
+  ];
 }

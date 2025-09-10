@@ -1,5 +1,7 @@
 // ignore_for_file: cascade_invocations, use_if_null_to_convert_nulls_to_bools
 
+import 'dart:io';
+
 import 'package:args/command_runner.dart';
 import 'package:changelog_cli/src/model/model.dart';
 import 'package:changelog_cli/src/printers/printers.dart';
@@ -151,7 +153,9 @@ class GenerateCommand extends Command<int> {
       return ExitCode.usage.code;
     }
 
-    final configuration = GenerateConfiguration.fromArgs(argResults!);
+    final configuration = GenerateConfiguration.fromArgs(argResults!, _logger);
+
+    _logger.detail('Using configuration: $configuration');
 
     final path = await getGitPath();
 
