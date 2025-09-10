@@ -19,6 +19,10 @@ jobs:
     permissions:
       contents: write
 
+    outputs:
+      tag_name: ${{ steps.tag_check.outputs.tag_name }}
+      version: ${{ steps.version_dart.outputs.version }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -186,6 +190,7 @@ jobs:
 
   build_changelog_cli:
     needs: release
+    if: ${{ !inputs.dry_run }}
     defaults:
       run:
         working-directory: changelog_cli
@@ -216,7 +221,8 @@ jobs:
           path: changelog_cli/build/${{ matrix.os }}/${{ matrix.binary-name }}
 
   upload_artifacts:
-    needs: build_changelog_cli
+    needs: [release, build_changelog_cli]
+    if: ${{ !inputs.dry_run }}
     name: Upload Artifacts to GitHub Release
     runs-on: ubuntu-latest
     permissions:
@@ -242,5 +248,6 @@ jobs:
       - name: Upload artifacts to existing release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ needs.release.outputs.tag_name }}
           files: bin-*/*
           draft: false # Publish the release after artifacts are uploaded
