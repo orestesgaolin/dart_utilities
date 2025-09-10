@@ -1,21 +1,9 @@
-Resolving dependencies...
-Downloading packages...
-No dependencies would change in `/home/runner/work/dart_utilities/dart_utilities/changelog_cli`.
-
-Completion files installed. To enable completion, run the following command in your shell:
-source /home/runner/.bash_profile
-
 ## 0.6.1
 
 **Bug Fixes**
 
 - update image URL in README to use the correct reference
 - update version to 0.6.1 to get rid of unnecessary update prompt - no functional changes (fixes #16)
-
-
-
-Update available! 0.6.1 → 0.6.0
-Run changelog_cli update to update
 
 ## 0.6.0
 
