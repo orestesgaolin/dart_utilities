@@ -106,9 +106,6 @@ jobs:
             --start "${{ steps.latest_tag.outputs.latest_tag }}" \
             --end "HEAD" \
             --version "${{ steps.version_dart.outputs.version }}" \
-            --printer markdown \
-            --path . \
-            --auto-tag-glob-pattern "changelog_cli*" \
             --output CHANGELOG.md
 
           # Save changelog content to temporary file for release notes
@@ -116,9 +113,6 @@ jobs:
             --start "${{ steps.latest_tag.outputs.latest_tag }}" \
             --end "HEAD" \
             --version "${{ steps.version_dart.outputs.version }}" \
-            --printer markdown \
-            --path . \
-            --auto-tag-glob-pattern "changelog_cli*" \
             --output /tmp/new_changelog.md
 
           # Also save to output for GitHub Actions
@@ -167,7 +161,7 @@ jobs:
 
           # Create release with changelog content
           gh release create "$TAG_NAME" \
-            --title "changelog_cli ${{ steps.version_dart.outputs.version }}" \
+            --title "$TAG_NAME" \
             --notes-file /tmp/new_changelog.md \
             --draft
 
