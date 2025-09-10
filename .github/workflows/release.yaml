@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Dry run (do not create tag/release)'
+        description: "Dry run (do not create tag/release)"
         required: false
         default: false
         type: boolean
@@ -15,15 +15,15 @@ jobs:
     defaults:
       run:
         working-directory: changelog_cli
-    
+
     permissions:
       contents: write
-      
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Fetch all history for proper changelog generation
+          fetch-depth: 0 # Fetch all history for proper changelog generation
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Dart
@@ -91,49 +91,39 @@ jobs:
           echo "Please update the version in version.dart and pubspec.yaml"
           exit 1
 
-      - name: Generate changelog since last tag
+      - name: Generate changelog and update CHANGELOG.md
         id: changelog
         run: |
           echo "Generating changelog from ${{ steps.latest_tag.outputs.latest_tag }} to HEAD"
-          
-          # Generate changelog using changelog_cli
-          CHANGELOG_CONTENT=$(changelog_cli generate \
+
+          # Generate changelog using changelog_cli with --output option
+          # This will prepend the new changelog content to existing CHANGELOG.md
+          changelog_cli generate \
             --start "${{ steps.latest_tag.outputs.latest_tag }}" \
             --end "HEAD" \
             --version "${{ steps.version_dart.outputs.version }}" \
             --printer markdown \
             --path . \
-            --auto-tag-glob-pattern "changelog_cli*")
-          
-          # Save changelog content to file for later use
-          echo "$CHANGELOG_CONTENT" > /tmp/new_changelog.md
-          
-          # Also save to output (escape for GitHub Actions)
+            --auto-tag-glob-pattern "changelog_cli*" \
+            --output CHANGELOG.md
+
+          # Save changelog content to temporary file for release notes
+          changelog_cli generate \
+            --start "${{ steps.latest_tag.outputs.latest_tag }}" \
+            --end "HEAD" \
+            --version "${{ steps.version_dart.outputs.version }}" \
+            --printer markdown \
+            --path . \
+            --auto-tag-glob-pattern "changelog_cli*" \
+            --output /tmp/new_changelog.md
+
+          # Also save to output for GitHub Actions
           {
             echo 'content<<EOF'
-            echo "$CHANGELOG_CONTENT"
+            cat /tmp/new_changelog.md
             echo 'EOF'
           } >> $GITHUB_OUTPUT
 
-      - name: Update CHANGELOG.md
-        run: |
-          # Read the new changelog content
-          NEW_CONTENT=$(cat /tmp/new_changelog.md)
-          
-          # Create temporary file with new content + existing changelog
-          {
-            echo "$NEW_CONTENT"
-            echo ""
-            
-            # Add existing content if CHANGELOG.md exists and has content after first line
-            if [ -f "CHANGELOG.md" ] && [ "$(wc -l < CHANGELOG.md)" -gt 0 ]; then
-              tail -n +1 CHANGELOG.md
-            fi
-          } > /tmp/updated_changelog.md
-          
-          # Replace the original file
-          mv /tmp/updated_changelog.md CHANGELOG.md
-          
           echo "✅ Updated CHANGELOG.md with new version ${{ steps.version_dart.outputs.version }}"
 
       - name: Setup Git
@@ -170,13 +160,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME="${{ steps.tag_check.outputs.tag_name }}"
-          
+
           # Create release with changelog content
           gh release create "$TAG_NAME" \
             --title "changelog_cli ${{ steps.version_dart.outputs.version }}" \
             --notes-file /tmp/new_changelog.md \
             --draft
-          
+
           echo "✅ Created GitHub release: $TAG_NAME"
           echo "The release is created as draft and will be updated with artifacts by the build workflow"
 
@@ -189,7 +179,68 @@ jobs:
           echo "- Latest tag found: ${{ steps.latest_tag.outputs.latest_tag }}"
           echo "- CHANGELOG.md would be updated with new content"
           echo "- No actual tag or release would be created"
-          
+
           echo ""
           echo "📝 Generated changelog content:"
           cat /tmp/new_changelog.md
+
+  build_changelog_cli:
+    needs: release
+    defaults:
+      run:
+        working-directory: changelog_cli
+    name: Build changelog_cli
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
+        include:
+          - binary-name: changelog_cli_linux
+            os: ubuntu-latest
+          - binary-name: changelog_cli.exe
+            os: windows-latest
+          - binary-name: changelog_cli_macos
+            os: macos-latest
+          - binary-name: changelog_cli_macos_x86
+            os: macos-13
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+      - run: dart pub get
+      - run: mkdir build
+      - run: mkdir build/${{ matrix.os }}
+      - run: dart compile exe bin/changelog_cli.dart -o build/${{ matrix.os }}/${{ matrix.binary-name }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.os }}
+          path: changelog_cli/build/${{ matrix.os }}/${{ matrix.binary-name }}
+
+  upload_artifacts:
+    needs: build_changelog_cli
+    name: Upload Artifacts to GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: bin-ubuntu-latest
+          path: bin-linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: bin-macos-latest
+          path: bin-macos
+      - uses: actions/download-artifact@v4
+        with:
+          name: bin-windows-latest
+          path: bin-windows
+      - uses: actions/download-artifact@v4
+        with:
+          name: bin-macos-13
+          path: bin-macos-x86
+
+      - name: Upload artifacts to existing release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: bin-*/*
+          draft: false # Publish the release after artifacts are uploaded
