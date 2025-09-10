@@ -1,3 +1,25 @@
+Resolving dependencies...
+Downloading packages...
+No dependencies would change in `/home/runner/work/dart_utilities/dart_utilities/changelog_cli`.
+
+Completion files installed. To enable completion, run the following command in your shell:
+source /home/runner/.bash_profile
+
+## 0.7.0
+
+**Features**
+
+- add support for output file parameter for changelog generation - will prepend new content to the existing file
+
+**Bug Fixes**
+
+- handle argument precendence correctly (arguments>config file>defaults) as it was not working for some arguments with default values, improve verbose logging
+
+
+
+Update available! 0.7.0 → 0.6.1
+Run changelog_cli update to update
+
 ## 0.6.1
 
 **Bug Fixes**
