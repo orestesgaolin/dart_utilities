@@ -16,7 +16,7 @@ changelog:
     - perf
 
   # Output settings
-  printer: simple  # Output format: simple, markdown, slack-markdown
+  printer: markdown  # Output format: simple, markdown, slack-markdown
   version: ""      # Version to display in changelog header
   limit: 0         # Max length of changelog (0 = no limit)
 
@@ -27,7 +27,7 @@ changelog:
 
   # Auto-detection settings
   auto: false                    # Automatically detect previous tag
-  auto_tag_glob_pattern: ""      # Pattern for auto tag detection
+  auto_tag_glob_pattern: "changelog_cli-v*"      # Pattern for auto tag detection
 
   # Integration settings
   jira_url: ""  # JIRA URL for issue linking
