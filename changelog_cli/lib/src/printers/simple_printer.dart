@@ -34,12 +34,18 @@ class SimplePrinter extends Printer {
             final scopes = entry.conventionalCommit.scopes.join(', ');
             buffer.write('$scopes: ');
           }
+          
+          var message = entry.message;
+          if (entry.isReverted) {
+            message = '$message (reverted in ${entry.revertedByRef?.substring(0, 7) ?? 'unknown'})';
+          }
+          
           if (entry.date != null && configuration.dateFormat.isNotEmpty) {
-            buffer.write(entry.message);
+            buffer.write(message);
             final dateFormatted = configuration.formatDateTime(entry.date);
             buffer.writeln(' ($dateFormatted)');
           } else {
-            buffer.writeln(entry.message);
+            buffer.writeln(message);
           }
         }
         buffer.writeln();

@@ -30,6 +30,9 @@ class MarkdownPrinter extends Printer {
         buffer.writeln();
         for (final entry in group.entries) {
           buffer.write('- ');
+          if (entry.isReverted){
+            buffer.write('~');
+          }
           if (entry.conventionalCommit.scopes.isNotEmpty) {
             final scopes = entry.conventionalCommit.scopes.join(', ');
             buffer.write('**$scopes**: ');
@@ -44,6 +47,10 @@ class MarkdownPrinter extends Printer {
                 return '[$title]($url)';
               },
             );
+          }
+          
+          if (entry.isReverted) {
+            message = '$message~ *(reverted in ${entry.revertedByRef?.substring(0, 7) ?? 'unknown'})*';
           }
 
           if (entry.date != null && configuration.dateFormat.isNotEmpty) {

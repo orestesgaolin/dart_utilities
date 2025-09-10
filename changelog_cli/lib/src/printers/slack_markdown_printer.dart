@@ -35,6 +35,9 @@ class SlackMarkdownPrinter extends Printer {
         buffer.writeln();
         for (final entry in group.entries) {
           buffer.write('- ');
+          if (entry.isReverted){
+            buffer.write('~');
+          }
           if (entry.conventionalCommit.scopes.isNotEmpty) {
             final scopes = entry.conventionalCommit.scopes.join(', ');
             buffer.write('*$scopes*: ');
@@ -49,6 +52,10 @@ class SlackMarkdownPrinter extends Printer {
                 return '<$url|$title>';
               },
             );
+          }
+          
+          if (entry.isReverted) {
+            message = '$message~ _(reverted in `${entry.revertedByRef?.substring(0, 7) ?? 'unknown'}`)_';
           }
 
           if (entry.date != null && configuration.dateFormat.isNotEmpty) {

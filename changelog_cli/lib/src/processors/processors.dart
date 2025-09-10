@@ -1,4 +1,5 @@
 import 'package:changelog_cli/src/model/model.dart';
+import 'package:changelog_cli/src/processors/revert_detector.dart';
 import 'package:collection/collection.dart';
 import 'package:mason_logger/mason_logger.dart';
 
@@ -10,11 +11,13 @@ class Preprocessor {
     GenerateConfiguration configuration, {
     Logger? logger,
   }) {
+    final entriesWithReverts = RevertDetector.detectReverts(entries, logger: logger);
+
     // group by configuration.groupBy
     logger?.detail('Grouping changelog entries by ${configuration.groupBy}');
     switch (configuration.groupBy) {
       case GroupBy.dateAsc:
-        entries.sort((a, b) {
+        entriesWithReverts.sort((ChangelogEntry a, ChangelogEntry b) {
           if (a.date == null && b.date == null) {
             return 0;
           }
@@ -27,7 +30,7 @@ class Preprocessor {
           return a.date!.compareTo(b.date!);
         });
       case GroupBy.dateDesc:
-        entries.sort((a, b) {
+        entriesWithReverts.sort((ChangelogEntry a, ChangelogEntry b) {
           if (a.date == null && b.date == null) {
             return 0;
           }
@@ -40,18 +43,20 @@ class Preprocessor {
           return b.date!.compareTo(a.date!);
         });
       case GroupBy.scopeAsc:
-        entries.sort(
-          (a, b) => a.conventionalCommit.scopes.join().compareTo(b.conventionalCommit.scopes.join()),
+        entriesWithReverts.sort(
+          (ChangelogEntry a, ChangelogEntry b) =>
+              a.conventionalCommit.scopes.join().compareTo(b.conventionalCommit.scopes.join()),
         );
       case GroupBy.scopeDesc:
-        entries.sort(
-          (a, b) => b.conventionalCommit.scopes.join().compareTo(a.conventionalCommit.scopes.join()),
+        entriesWithReverts.sort(
+          (ChangelogEntry a, ChangelogEntry b) =>
+              b.conventionalCommit.scopes.join().compareTo(a.conventionalCommit.scopes.join()),
         );
     }
 
     // depending on the grouping:
 
-    final groupedEntries = entries.groupListsBy((e) => e.type);
+    final groupedEntries = entriesWithReverts.groupListsBy((ChangelogEntry e) => e.type);
 
     final filteredEntries = <ChangelogEntryGroup>[];
 
