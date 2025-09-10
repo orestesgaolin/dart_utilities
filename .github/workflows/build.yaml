@@ -38,8 +38,10 @@ jobs:
 
   upload_artifacts:
     needs: build_changelog_cli
-    name: Create GitHub Release and Upload Artifacts
+    name: Upload Artifacts to GitHub Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -57,7 +59,9 @@ jobs:
         with:
           name: bin-macos-13
           path: bin-macos-x86
-      - uses: softprops/action-gh-release@v1
+      
+      - name: Upload artifacts to existing release
+        uses: softprops/action-gh-release@v1
         with:
-          draft: true
           files: bin-*/*
+          draft: false  # Publish the release after artifacts are uploaded

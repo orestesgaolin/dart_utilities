@@ -1,0 +1,195 @@
+name: Create Release with Changelog
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not create tag/release)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: changelog_cli
+    
+    permissions:
+      contents: write
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper changelog generation
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Activate changelog_cli
+        run: dart pub global activate --source=path .
+
+      - name: Read version from version.dart
+        id: version_dart
+        run: |
+          VERSION=$(grep "const packageVersion" lib/src/version.dart | sed "s/const packageVersion = '\(.*\)';/\1/")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version from version.dart: $VERSION"
+
+      - name: Read version from pubspec.yaml
+        id: version_pubspec
+        run: |
+          VERSION=$(grep "^version:" pubspec.yaml | sed "s/version: \(.*\)/\1/")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version from pubspec.yaml: $VERSION"
+
+      - name: Verify versions match
+        run: |
+          if [ "${{ steps.version_dart.outputs.version }}" != "${{ steps.version_pubspec.outputs.version }}" ]; then
+            echo "ERROR: Version mismatch!"
+            echo "version.dart: ${{ steps.version_dart.outputs.version }}"
+            echo "pubspec.yaml: ${{ steps.version_pubspec.outputs.version }}"
+            exit 1
+          fi
+          echo "✅ Versions match: ${{ steps.version_dart.outputs.version }}"
+
+      - name: Get latest tag
+        id: latest_tag
+        run: |
+          # Get the latest tag for changelog_cli
+          LATEST_TAG=$(git tag -l "changelog_cli-v*" | sort -V | tail -n 1)
+          if [ -z "$LATEST_TAG" ]; then
+            echo "No previous tags found, using initial commit"
+            LATEST_TAG=$(git rev-list --max-parents=0 HEAD)
+          fi
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Latest tag: $LATEST_TAG"
+
+      - name: Check if tag already exists
+        id: tag_check
+        run: |
+          TAG_NAME="changelog_cli-v${{ steps.version_dart.outputs.version }}"
+          if git tag -l | grep -q "^$TAG_NAME$"; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "❌ Tag $TAG_NAME already exists"
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✅ Tag $TAG_NAME does not exist"
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Fail if tag exists
+        if: steps.tag_check.outputs.exists == 'true'
+        run: |
+          echo "ERROR: Tag ${{ steps.tag_check.outputs.tag_name }} already exists!"
+          echo "Please update the version in version.dart and pubspec.yaml"
+          exit 1
+
+      - name: Generate changelog since last tag
+        id: changelog
+        run: |
+          echo "Generating changelog from ${{ steps.latest_tag.outputs.latest_tag }} to HEAD"
+          
+          # Generate changelog using changelog_cli
+          CHANGELOG_CONTENT=$(changelog_cli generate \
+            --start "${{ steps.latest_tag.outputs.latest_tag }}" \
+            --end "HEAD" \
+            --version "${{ steps.version_dart.outputs.version }}" \
+            --printer markdown \
+            --path . \
+            --auto-tag-glob-pattern "changelog_cli*")
+          
+          # Save changelog content to file for later use
+          echo "$CHANGELOG_CONTENT" > /tmp/new_changelog.md
+          
+          # Also save to output (escape for GitHub Actions)
+          {
+            echo 'content<<EOF'
+            echo "$CHANGELOG_CONTENT"
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+
+      - name: Update CHANGELOG.md
+        run: |
+          # Read the new changelog content
+          NEW_CONTENT=$(cat /tmp/new_changelog.md)
+          
+          # Create temporary file with new content + existing changelog
+          {
+            echo "$NEW_CONTENT"
+            echo ""
+            
+            # Add existing content if CHANGELOG.md exists and has content after first line
+            if [ -f "CHANGELOG.md" ] && [ "$(wc -l < CHANGELOG.md)" -gt 0 ]; then
+              tail -n +1 CHANGELOG.md
+            fi
+          } > /tmp/updated_changelog.md
+          
+          # Replace the original file
+          mv /tmp/updated_changelog.md CHANGELOG.md
+          
+          echo "✅ Updated CHANGELOG.md with new version ${{ steps.version_dart.outputs.version }}"
+
+      - name: Setup Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+      - name: Commit updated CHANGELOG.md
+        run: |
+          git add CHANGELOG.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: update CHANGELOG.md for v${{ steps.version_dart.outputs.version }}"
+            echo "✅ Committed CHANGELOG.md changes"
+          fi
+
+      - name: Push changes
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git push origin main
+
+      - name: Create and push tag
+        if: ${{ !inputs.dry_run }}
+        run: |
+          TAG_NAME="${{ steps.tag_check.outputs.tag_name }}"
+          git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+          git push origin "$TAG_NAME"
+          echo "✅ Created and pushed tag: $TAG_NAME"
+
+      - name: Create GitHub Release
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ steps.tag_check.outputs.tag_name }}"
+          
+          # Create release with changelog content
+          gh release create "$TAG_NAME" \
+            --title "changelog_cli ${{ steps.version_dart.outputs.version }}" \
+            --notes-file /tmp/new_changelog.md \
+            --draft
+          
+          echo "✅ Created GitHub release: $TAG_NAME"
+          echo "The release is created as draft and will be updated with artifacts by the build workflow"
+
+      - name: Dry run summary
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "🔍 DRY RUN SUMMARY:"
+          echo "- Version: ${{ steps.version_dart.outputs.version }}"
+          echo "- Tag that would be created: ${{ steps.tag_check.outputs.tag_name }}"
+          echo "- Latest tag found: ${{ steps.latest_tag.outputs.latest_tag }}"
+          echo "- CHANGELOG.md would be updated with new content"
+          echo "- No actual tag or release would be created"
+          
+          echo ""
+          echo "📝 Generated changelog content:"
+          cat /tmp/new_changelog.md
