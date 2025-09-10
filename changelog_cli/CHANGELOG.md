@@ -1,3 +1,14 @@
+## 0.7.0
+
+**Features**
+
+- add support for output file parameter for changelog generation - will prepend new content to the existing file
+
+**Bug Fixes**
+
+- handle argument precendence correctly (arguments>config file>defaults) as it was not working for some arguments with default values, improve verbose logging
+
+
 Resolving dependencies...
 Downloading packages...
 No dependencies would change in `/home/runner/work/dart_utilities/dart_utilities/changelog_cli`.
