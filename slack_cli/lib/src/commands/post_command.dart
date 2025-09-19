@@ -209,7 +209,15 @@ List<Block> parseBlocks(String block, {Logger? logger}) {
     if (parts.isNotEmpty) {
       if (parts[0] == 'fields') {
         final fields = parts.sublist(1);
-        sections.add(SectionBlock(fields: fields));
+        for (final field in fields) {
+          if (field.trim().isNotEmpty) {
+            sections.add(
+              SectionBlock(
+                text: field,
+              ),
+            );
+          }
+        }
         continue;
       }
     }
