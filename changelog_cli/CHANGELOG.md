@@ -1,3 +1,9 @@
+## 0.9.0
+
+**Features**
+
+- **changelog_cli**: add jira project key support and output path configuration
+
 ## 0.8.0
 
 **Features**
