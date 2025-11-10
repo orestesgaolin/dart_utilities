@@ -125,7 +125,9 @@ changelog:
   auto_tag_glob_pattern: ""      # Pattern for auto tag detection
 
   # Integration settings
-  jira_url: ""  # JIRA URL for issue linking
+  jira_url: ""          # JIRA URL for issue linking
+  jira_project_key: ""  # JIRA project key (e.g. AB, VA) - if not set, matches any valid ticket
+  output: ""            # Output file path
 ''';
   }
 
@@ -158,7 +160,9 @@ changelog:
     "auto": false,
     "auto_tag_glob_pattern": "",
     
-    "jira_url": ""
+    "jira_url": "",
+    "jira_project_key": "",
+    "output": ""
   }
 }''';
   }

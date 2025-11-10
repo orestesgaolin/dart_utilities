@@ -156,6 +156,8 @@ changelog:
 
   # Integration settings
   jira_url: "" # JIRA URL for issue linking
+  jira_project_key: "" # JIRA project key (e.g. AB, VA) - if not set, matches any valid ticket
+  output: "" # Output file path (if empty, prints to console)
 ```
 
 #### JSON Configuration (`.changelogrc`)
@@ -176,6 +178,7 @@ changelog:
     "auto": false,
     "auto_tag_glob_pattern": "",
     "jira_url": "",
+    "jira_project_key": "",
     "output": ""
   }
 }

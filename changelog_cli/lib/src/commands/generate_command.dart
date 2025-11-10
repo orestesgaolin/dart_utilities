@@ -126,6 +126,15 @@ class GenerateCommand extends Command<int> {
       valueHelp: 'https://companyname.atlassian.net/browse/',
     );
     argParser.addOption(
+      'jira-project-key',
+      help:
+          'When provided along with jira-url, only issues with this project '
+          'key will be linked (e.g. AB, VA). If not provided but jira-url is '
+          'set, any valid Jira ticket format will be matched.',
+      defaultsTo: '',
+      valueHelp: 'AB',
+    );
+    argParser.addOption(
       'output',
       abbr: 'o',
       help:

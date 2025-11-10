@@ -30,4 +30,6 @@ changelog:
   auto_tag_glob_pattern: "changelog_cli-v*"      # Pattern for auto tag detection
 
   # Integration settings
-  jira_url: ""  # JIRA URL for issue linking
+  jira_url: ""          # JIRA URL for issue linking
+  jira_project_key: ""  # JIRA project key (e.g. AB, VA) - if not set, matches any valid ticket
+  output: ""            # Output file path

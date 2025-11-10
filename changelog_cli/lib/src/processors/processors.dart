@@ -90,7 +90,12 @@ class CommitMessageProcessor {
     GenerateConfiguration configuration,
     String Function(String url, String title) urlBuilder,
   ) {
-    const regex = r'\b[A-Z][A-Z0-9_]+-[1-9][0-9]*';
+    // If project key is specified, use it for targeted matching
+    // Otherwise, use generic pattern that matches any valid Jira ticket format
+    final regex = configuration.jiraProjectKey.isNotEmpty
+        ? '\\b${configuration.jiraProjectKey}-[1-9][0-9]*'
+        : r'\b[A-Z][A-Z0-9_]+-[1-9][0-9]*';
+    
     final matches = RegExp(regex).allMatches(message);
     if (matches.isEmpty) {
       return message;

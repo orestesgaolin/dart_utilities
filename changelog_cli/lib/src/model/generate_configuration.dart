@@ -60,6 +60,7 @@ class GenerateConfiguration extends Equatable {
     required this.limit,
     required this.dateFormat,
     required this.jiraUrl,
+    required this.jiraProjectKey,
     required this.output,
   });
 
@@ -104,8 +105,10 @@ class GenerateConfiguration extends Equatable {
     }
 
     final dateFormat = _getArgValue(args, 'date-format', configData['changelog']?['date_format'] as String?, logger) ?? '';
-    final jiraArg = _getArgValue(args, 'jira-url', null, logger);
+    final jiraArg = _getArgValue(args, 'jira-url', configData['changelog']?['jira_url'] as String?, logger);
     final jiraUrl = jiraArg ?? configData['changelog']?['jira_url'] as String? ?? '';
+    final jiraProjectKeyArg = _getArgValue(args, 'jira-project-key', configData['changelog']?['jira_project_key'] as String?, logger);
+    final jiraProjectKey = jiraProjectKeyArg ?? configData['changelog']?['jira_project_key'] as String? ?? '';
     final outputArg = _getArgValue(args, 'output', null, logger);
     final output = outputArg ?? configData['changelog']?['output'] as String? ?? '';
 
@@ -131,6 +134,7 @@ class GenerateConfiguration extends Equatable {
       limit: limit,
       dateFormat: dateFormat,
       jiraUrl: jiraUrl,
+      jiraProjectKey: jiraProjectKey,
       output: output,
     );
   }
@@ -224,6 +228,7 @@ class GenerateConfiguration extends Equatable {
   final int limit;
   final String dateFormat;
   final String jiraUrl;
+  final String jiraProjectKey;
   final String output;
 
   String formatDateTime(DateTime? date) {
@@ -250,6 +255,7 @@ class GenerateConfiguration extends Equatable {
     limit,
     dateFormat,
     jiraUrl,
+    jiraProjectKey,
     output,
   ];
 }
