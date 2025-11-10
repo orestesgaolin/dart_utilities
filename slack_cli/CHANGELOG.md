@@ -1,3 +1,7 @@
+# 0.2.2
+
+- test release - no changes
+
 # 0.2.1
 
 **Bug Fixes**
