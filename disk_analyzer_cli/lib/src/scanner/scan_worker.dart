@@ -14,6 +14,7 @@ class ScanWorkerConfig {
   final int scanId;
   final String rootPath;
   final int depthOffset;
+  final List<String> collapsedDirs;
 
   ScanWorkerConfig({
     required this.sendPort,
@@ -22,6 +23,7 @@ class ScanWorkerConfig {
     required this.scanId,
     required this.rootPath,
     required this.depthOffset,
+    this.collapsedDirs = const [],
   });
 }
 
@@ -66,7 +68,7 @@ Future<void> scanWorkerEntry(ScanWorkerConfig config) async {
     db.deleteSubtree(scanId, targetPath);
 
     final writer = db.batchWriter(scanId);
-    final scanner = DiskScanner();
+    final scanner = DiskScanner(collapsedDirs: config.collapsedDirs);
 
     // Insert root entry for the scanned subfolder
     writer.add(FileEntry(
@@ -125,6 +127,7 @@ Future<ScanWorkerHandle> launchScanWorker({
   required int scanId,
   required String rootPath,
   required int depthOffset,
+  List<String> collapsedDirs = const [],
 }) async {
   final receivePort = ReceivePort();
   final errorPort = ReceivePort();
@@ -137,6 +140,7 @@ Future<ScanWorkerHandle> launchScanWorker({
     scanId: scanId,
     rootPath: rootPath,
     depthOffset: depthOffset,
+    collapsedDirs: collapsedDirs,
   );
 
   await Isolate.spawn(

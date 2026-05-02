@@ -6,6 +6,7 @@ export 'src/commands/delete_command.dart';
 export 'src/commands/scan_command.dart';
 export 'src/commands/show_command.dart';
 export 'src/commands/tui_command.dart';
+export 'src/config.dart';
 export 'src/display/size_formatter.dart';
 export 'src/display/tree_renderer.dart';
 export 'src/display/tui_app.dart';

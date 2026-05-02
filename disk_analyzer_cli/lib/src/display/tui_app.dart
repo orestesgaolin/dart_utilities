@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:nocterm/nocterm.dart';
 import 'package:path/path.dart' as p;
 
+import '../config.dart';
 import '../display/size_formatter.dart';
 import '../scanner/scan_worker.dart';
 import '../storage/database.dart';
@@ -41,12 +42,14 @@ class DiskUsageApp extends StatefulComponent {
     required this.db,
     required this.scanId,
     required this.rootPath,
+    required this.config,
     super.key,
   });
 
   final DiskDatabase db;
   final int scanId;
   final String rootPath;
+  final AnalyzerConfig config;
 
   @override
   State<DiskUsageApp> createState() => _DiskUsageAppState();
@@ -75,6 +78,12 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
 
   /// Timer to throttle UI updates from the worker.
   Timer? _progressThrottle;
+
+  /// Whether the settings panel is visible.
+  bool _showSettings = false;
+
+  /// Selected index within the settings panel.
+  int _settingsIndex = 0;
 
   /// Last progress data from the worker (applied on throttle tick).
   ScanWorkerProgress? _pendingProgress;
@@ -360,6 +369,7 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
       scanId: component.scanId,
       rootPath: rootPath,
       depthOffset: depthOffset,
+      collapsedDirs: component.config.collapsedDirs,
     ).then((handle) {
       handle.listen(
         onProgress: (progress) {
@@ -421,6 +431,11 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
     return Focusable(
       focused: true,
       onKeyEvent: (event) {
+        // Settings panel key handling
+        if (_showSettings) {
+          return _handleSettingsKey(event);
+        }
+
         if (event.logicalKey == LogicalKey.keyQ ||
             event.logicalKey == LogicalKey.escape && _pathStack.length <= 1) {
           shutdownApp();
@@ -464,6 +479,14 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
           _openInFinder();
           return true;
         }
+        // , = open settings
+        if (event.logicalKey == LogicalKey.comma) {
+          setState(() {
+            _showSettings = true;
+            _settingsIndex = 0;
+          });
+          return true;
+        }
         if (event.logicalKey == LogicalKey.pageUp) {
           setState(() {
             _selectedIndex =
@@ -504,26 +527,28 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
             _buildHeader(currentSize),
             Divider(style: DividerStyle.single, color: Colors.gray),
             Expanded(
-              child: _entries.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No entries found',
-                        style: TextStyle(color: Colors.gray),
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollController,
-                      keyboardScrollable: false,
-                      itemExtent: 1,
-                      itemCount: _entries.length,
-                      itemBuilder: (context, index) {
-                        return _buildEntryRow(
-                          _entries[index],
-                          index,
-                          currentSize,
-                        );
-                      },
-                    ),
+              child: _showSettings
+                  ? _buildSettingsPanel()
+                  : _entries.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No entries found',
+                            style: TextStyle(color: Colors.gray),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: _scrollController,
+                          keyboardScrollable: false,
+                          itemExtent: 1,
+                          itemCount: _entries.length,
+                          itemBuilder: (context, index) {
+                            return _buildEntryRow(
+                              _entries[index],
+                              index,
+                              currentSize,
+                            );
+                          },
+                        ),
             ),
             Divider(style: DividerStyle.single, color: Colors.gray),
             _buildFooter(),
@@ -682,6 +707,155 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
     );
   }
 
+  bool _handleSettingsKey(KeyboardEvent event) {
+    final items = _settingsItems;
+
+    if (event.logicalKey == LogicalKey.escape ||
+        event.logicalKey == LogicalKey.comma ||
+        event.logicalKey == LogicalKey.backspace) {
+      setState(() => _showSettings = false);
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.arrowUp) {
+      setState(() {
+        if (_settingsIndex > 0) _settingsIndex--;
+      });
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.arrowDown) {
+      setState(() {
+        if (_settingsIndex < items.length - 1) _settingsIndex++;
+      });
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.enter ||
+        event.logicalKey == LogicalKey.space) {
+      _toggleSettingsItem(_settingsIndex);
+      return true;
+    }
+    // 'a' to add a new collapsed dir
+    if (event.logicalKey == LogicalKey.keyA) {
+      _addCollapsedDir();
+      return true;
+    }
+    // 'd' or delete to remove selected
+    if (event.logicalKey == LogicalKey.keyD ||
+        event.logicalKey == LogicalKey.delete) {
+      _removeSettingsItem(_settingsIndex);
+      return true;
+    }
+    if (event.logicalKey == LogicalKey.keyQ) {
+      setState(() => _showSettings = false);
+      return true;
+    }
+    return true; // Consume all keys in settings mode
+  }
+
+  /// Settings items: list of collapsed dir names with toggle state.
+  List<({String name, bool enabled})> get _settingsItems {
+    return component.config.collapsedDirs
+        .map((d) => (name: d, enabled: true))
+        .toList();
+  }
+
+  void _toggleSettingsItem(int index) {
+    final items = component.config.collapsedDirs;
+    if (index < 0 || index >= items.length) return;
+    setState(() {
+      component.config.collapsedDirs.removeAt(index);
+      component.config.save();
+    });
+  }
+
+  void _removeSettingsItem(int index) {
+    final items = component.config.collapsedDirs;
+    if (index < 0 || index >= items.length) return;
+    setState(() {
+      items.removeAt(index);
+      if (_settingsIndex >= items.length && items.isNotEmpty) {
+        _settingsIndex = items.length - 1;
+      }
+      component.config.save();
+    });
+  }
+
+  void _addCollapsedDir() {
+    // Add a placeholder — in a real app this would be an input field.
+    // For now, cycle through common defaults not already in the list.
+    const suggestions = [
+      'node_modules',
+      '.git',
+      'build',
+      '.dart_tool',
+      'target',
+      '.gradle',
+      '__pycache__',
+      'venv',
+      '.venv',
+      'dist',
+      'vendor',
+      'Pods',
+      '.cache',
+    ];
+    final current = component.config.collapsedDirs.toSet();
+    final next = suggestions.where((s) => !current.contains(s)).firstOrNull;
+    if (next != null) {
+      setState(() {
+        component.config.collapsedDirs.add(next);
+        _settingsIndex = component.config.collapsedDirs.length - 1;
+        component.config.save();
+      });
+    }
+  }
+
+  Component _buildSettingsPanel() {
+    final items = component.config.collapsedDirs;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '\u{2699}\u{fe0f}  Settings',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.cyan),
+          ),
+          SizedBox(height: 1),
+          Text(
+            'Collapsed Directories (not recursed during scan, only total size recorded):',
+            style: TextStyle(color: Colors.gray),
+          ),
+          SizedBox(height: 1),
+          ...List.generate(items.length, (index) {
+            final isSelected = index == _settingsIndex;
+            final bgColor = isSelected ? Color.fromRGB(30, 50, 70) : null;
+            return Container(
+              decoration:
+                  bgColor != null ? BoxDecoration(color: bgColor) : null,
+              child: Text(
+                '  ${isSelected ? '\u{25b6}' : ' '} ${items[index]}',
+                style: TextStyle(
+                  color: isSelected ? Colors.cyan : Colors.white,
+                  fontWeight: isSelected ? FontWeight.bold : null,
+                ),
+              ),
+            );
+          }),
+          if (items.isEmpty)
+            Text(
+              '  (none)',
+              style: TextStyle(color: Colors.brightBlack),
+            ),
+          SizedBox(height: 1),
+          Text(
+            '\u{2191}\u{2193} Select  a Add  d Remove  Esc/,/q Close',
+            style: TextStyle(color: Colors.gray),
+          ),
+        ],
+      ),
+    );
+  }
+
   Component _buildFooter() {
     final scannedCount = _entries.where((e) => e.isScanned).length;
     final totalCount = _entries.length;
@@ -695,7 +869,7 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
         children: [
           Expanded(
             child: Text(
-              '\u{2191}\u{2193} Nav  \u{23ce} Open  \u{232b} Back  s Scan  S All  o Finder  r Reload  q Quit',
+              '\u{2191}\u{2193} Nav  \u{23ce} Open  \u{232b} Back  s Scan  S All  o Finder  , Settings  q Quit',
               style: TextStyle(color: Colors.gray),
               overflow: TextOverflow.ellipsis,
               maxLines: 1,

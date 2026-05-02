@@ -38,9 +38,17 @@ class DiskScanner {
   final int? maxDepth;
   final Duration? timeout;
 
+  /// Directory names to collapse (don't recurse, just record total size).
+  final Set<String> collapsedDirs;
+
   bool _timedOut = false;
 
-  DiskScanner({this.followLinks = false, this.maxDepth, this.timeout});
+  DiskScanner({
+    this.followLinks = false,
+    this.maxDepth,
+    this.timeout,
+    List<String> collapsedDirs = const [],
+  }) : collapsedDirs = collapsedDirs.toSet();
 
   bool get timedOut => _timedOut;
 
@@ -88,6 +96,12 @@ class DiskScanner {
         seenDirInodes.add(rootStat.id);
       }
     }
+
+    // macOS system paths that recursively mirror / — always skip these
+    const systemMirrorPaths = {
+      '/System/Volumes/Data',
+      '/System/Volumes/Data/home',
+    };
 
     void reportProgress(String path) {
       if (onProgress == null) return;
@@ -163,6 +177,10 @@ class DiskScanner {
               if (!followLinks && FileSystemEntity.isLinkSync(entity.path)) {
                 continue;
               }
+              // Skip known macOS paths that mirror the root filesystem
+              if (systemMirrorPaths.contains(entity.path)) {
+                continue;
+              }
               // Skip directories on different devices (cross-device mounts)
               // and directories we've already seen (firmlinks like /.nofollow)
               if (hasNativeIdentity) {
@@ -179,15 +197,32 @@ class DiskScanner {
               }
               totalDirs++;
               reportProgress(entity.path);
-              final childSize = await walk(entity.path, childDepth);
-              onEntry(FileEntry(
-                path: entity.path,
-                isDirectory: true,
-                size: childSize,
-                depth: childDepth,
-                parentPath: dirPath,
-              ));
-              dirSize += childSize;
+
+              // Collapsed dirs: record total size without recursing
+              final dirBaseName = entity.path.substring(
+                  entity.path.lastIndexOf('/') + 1);
+              if (collapsedDirs.contains(dirBaseName)) {
+                final collapsedSize = await _getDirSize(entity.path);
+                onEntry(FileEntry(
+                  path: entity.path,
+                  isDirectory: true,
+                  size: collapsedSize,
+                  depth: childDepth,
+                  parentPath: dirPath,
+                ));
+                dirSize += collapsedSize;
+                totalBytes += collapsedSize;
+              } else {
+                final childSize = await walk(entity.path, childDepth);
+                onEntry(FileEntry(
+                  path: entity.path,
+                  isDirectory: true,
+                  size: childSize,
+                  depth: childDepth,
+                  parentPath: dirPath,
+                ));
+                dirSize += childSize;
+              }
             }
           } catch (e) {
             errors.add('Cannot access ${entity.path}: $e');
@@ -211,6 +246,30 @@ class DiskScanner {
       timedOut: _timedOut,
       hardlinksSkipped: hardlinksSkipped,
     );
+  }
+
+  /// Get total physical size of a directory without recursing into it entry by entry.
+  /// Uses the native file system to compute the total allocation.
+  Future<int> _getDirSize(String dirPath) async {
+    var total = 0;
+    try {
+      await for (final entity
+          in Directory(dirPath).list(recursive: true, followLinks: false)) {
+        if (entity is File) {
+          if (FileIdentity.isAvailable) {
+            final stat = FileIdentity.stat(entity.path);
+            if (stat != null) {
+              total += stat.physicalSize;
+              continue;
+            }
+          }
+          total += entity.statSync().size;
+        }
+      }
+    } catch (_) {
+      // Permission errors etc — return what we got
+    }
+    return total;
   }
 }
 

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:args/command_runner.dart';
 import 'package:path/path.dart' as p;
 
+import '../config.dart';
 import '../display/size_formatter.dart';
 import '../scanner/disk_scanner.dart';
 import '../storage/database.dart';
@@ -32,6 +33,12 @@ class ScanCommand extends Command<void> {
         'timeout',
         help: 'Stop scanning after this duration (e.g., 5m, 1h, 30s).',
         valueHelp: 'DURATION',
+      )
+      ..addMultiOption(
+        'ignore-dirs',
+        help: 'Directory names to collapse (record size only, don\'t recurse). '
+            'Defaults to config file values (node_modules, .git).',
+        valueHelp: 'NAME',
       );
   }
 
@@ -51,16 +58,23 @@ class ScanCommand extends Command<void> {
     final maxDepth = maxDepthStr != null ? int.tryParse(maxDepthStr) : null;
     final timeoutStr = argResults!.option('timeout');
     final timeout = timeoutStr != null ? _parseDuration(timeoutStr) : null;
+    final ignoreDirsArg = argResults!.multiOption('ignore-dirs');
 
     if (timeoutStr != null && timeout == null) {
       stderr.writeln('Error: Invalid timeout format. Use e.g., 30s, 5m, 1h.');
       return;
     }
 
+    // Use CLI override or fall back to config file
+    final config = AnalyzerConfig.load();
+    final collapsedDirs =
+        ignoreDirsArg.isNotEmpty ? ignoreDirsArg : config.collapsedDirs;
+
     final scanner = DiskScanner(
       followLinks: followLinks,
       maxDepth: maxDepth,
       timeout: timeout,
+      collapsedDirs: collapsedDirs,
     );
 
     final db = DiskDatabase.open();

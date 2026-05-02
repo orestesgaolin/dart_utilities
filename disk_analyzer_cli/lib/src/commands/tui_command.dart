@@ -4,6 +4,7 @@ import 'package:args/command_runner.dart';
 import 'package:nocterm/nocterm.dart';
 import 'package:path/path.dart' as p;
 
+import '../config.dart';
 import '../display/tui_app.dart';
 import '../storage/database.dart';
 
@@ -22,6 +23,7 @@ class TuiCommand extends Command<void> {
     final absPath = p.canonicalize(targetPath);
 
     final db = DiskDatabase.open();
+    final config = AnalyzerConfig.load();
 
     // Find the relevant scan
     var scan = db.getLatestScan(absPath);
@@ -34,6 +36,11 @@ class TuiCommand extends Command<void> {
       return;
     }
 
-    runApp(DiskUsageApp(db: db, scanId: scan.id, rootPath: absPath));
+    runApp(DiskUsageApp(
+      db: db,
+      scanId: scan.id,
+      rootPath: absPath,
+      config: config,
+    ));
   }
 }
