@@ -57,7 +57,7 @@ disk_analyzer_cli show /Users/dominik --min-size 1GB
 
 ### `tui` — Interactive terminal UI
 
-![](doc/screenshot_tui.png)
+![](https://github.com/orestesgaolin/dart_utilities/blob/main/disk_analyzer_cli/doc/screenshot_tui.png?raw=true)
 
 ```bash
 # Launch TUI for a scanned path
@@ -73,7 +73,7 @@ disk_analyzer_cli tui /Users/dominik
 | `Backspace` / `Esc` | Go back (restores previous selection) |
 | `s`                 | Scan selected folder (background)     |
 | `S` (Shift+S)       | Scan all unscanned folders            |
-| `o`                  | Open in Finder                        |
+| `o`                 | Open in Finder                        |
 | `r`                 | Reload current view                   |
 | `PgUp` / `PgDn`     | Page navigation                       |
 | `Home` / `End`      | Jump to first/last                    |

@@ -3,6 +3,14 @@ description: CLI tool to analyze disk space, visualize usage, and clean up files
 version: 1.0.0
 repository: https://github.com/orestesgaolin/dart_utilities
 issue_tracker: https://github.com/orestesgaolin/dart_utilities/issues
+screenshots:
+  - description: Disk usage visualization in the terminal
+    path: doc/screenshot_tui.png
+topics:
+  - cli
+  - disk-analyzer
+  - disk-usage
+  - nocterm
 
 environment:
   sdk: ^3.11.5
