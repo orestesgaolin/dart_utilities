@@ -51,7 +51,7 @@ jobs:
             asset_name="${bundle_dir#release-assets/bundle-}"
             (
               cd "$bundle_dir"
-              zip -r "../../dist/${asset_name}.zip" bundle
+              zip -r "../../dist/${asset_name}.zip" bin lib
             )
           done
 
