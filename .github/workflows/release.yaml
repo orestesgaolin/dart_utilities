@@ -191,7 +191,7 @@ jobs:
     name: Build changelog_cli
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         include:
           - binary-name: changelog_cli_linux
             os: ubuntu-latest
@@ -199,8 +199,6 @@ jobs:
             os: windows-latest
           - binary-name: changelog_cli_macos
             os: macos-latest
-          - binary-name: changelog_cli_macos_x86
-            os: macos-13
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -234,10 +232,6 @@ jobs:
         with:
           name: bin-windows-latest
           path: bin-windows
-      - uses: actions/download-artifact@v4
-        with:
-          name: bin-macos-13
-          path: bin-macos-x86
 
       - name: Upload artifacts to existing release
         uses: softprops/action-gh-release@v1
