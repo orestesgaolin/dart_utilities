@@ -1,6 +1,6 @@
 name: disk_analyzer_cli
 description: CLI tool to analyze disk space, visualize usage, and clean up files.
-version: 1.0.0
+version: 1.0.1
 repository: https://github.com/orestesgaolin/dart_utilities
 issue_tracker: https://github.com/orestesgaolin/dart_utilities/issues
 screenshots:
