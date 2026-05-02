@@ -95,7 +95,7 @@ class DiskDatabase {
       ) WITHOUT ROWID
     ''');
     _db.execute(
-        'CREATE INDEX IF NOT EXISTS idx_entries_scan_parent ON entries(scan_id, parent_path)');
+        'CREATE INDEX IF NOT EXISTS idx_entries_scan_parent ON entries(scan_id, parent_path, is_directory DESC, size DESC, depth)');
   }
 
   void _migrateToV1() {
@@ -129,9 +129,9 @@ class DiskDatabase {
       _db.execute('DROP TABLE entries');
       _db.execute('ALTER TABLE entries_new RENAME TO entries');
 
-      // Drop all old indexes and create only the one we need
+      // Covering index for TUI queries: includes display columns + matches sort order
       _db.execute(
-          'CREATE INDEX IF NOT EXISTS idx_entries_scan_parent ON entries(scan_id, parent_path)');
+          'CREATE INDEX IF NOT EXISTS idx_entries_scan_parent ON entries(scan_id, parent_path, is_directory DESC, size DESC, depth)');
 
       _db.execute('COMMIT');
     } catch (e) {
