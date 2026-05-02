@@ -20,8 +20,6 @@ jobs:
             asset-name: disk_analyzer_cli_windows_x64
           - os: macos-latest
             asset-name: disk_analyzer_cli_macos_arm64
-          - os: macos-13
-            asset-name: disk_analyzer_cli_macos_x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
