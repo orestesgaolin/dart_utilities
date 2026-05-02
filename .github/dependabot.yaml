@@ -4,8 +4,24 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "changelog_cli"
     schedule:
-      interval: "daily"
+      interval: "weekly"
   - package-ecosystem: "pub"
     directory: "changelog_cli"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "disk_analyzer_cli"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "pub"
+    directory: "disk_analyzer_cli"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "slack_cli"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "pub"
+    directory: "slack_cli"
+    schedule:
+      interval: "weekly"
