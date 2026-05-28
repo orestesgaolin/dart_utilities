@@ -307,10 +307,26 @@ class DiskDatabase {
   /// Delete all entries under a subtree path within a scan (inclusive).
   /// Uses exact path match + path prefix with '/' boundary to avoid prefix collisions.
   void deleteSubtree(int scanId, String subtreePath) {
-    _db.execute(
-      'DELETE FROM entries WHERE scan_id = ? AND (path = ? OR path LIKE ? || \'/%\')',
-      [scanId, subtreePath, subtreePath],
-    );
+    final childPrefix = subtreePath == '/' ? '/' : '$subtreePath/';
+    // '/' sorts immediately before '0', giving a tight upper bound for children.
+    final childUpperBound = subtreePath == '/' ? '0' : '${subtreePath}0';
+
+    _db.execute('BEGIN TRANSACTION');
+    try {
+      _db.execute('DELETE FROM entries WHERE scan_id = ? AND path = ?', [
+        scanId,
+        subtreePath,
+      ]);
+      _db.execute(
+        'DELETE FROM entries '
+        'WHERE scan_id = ? AND path >= ? AND path < ?',
+        [scanId, childPrefix, childUpperBound],
+      );
+      _db.execute('COMMIT');
+    } catch (e) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
   }
 
   /// Get the depth of an entry in a scan.
