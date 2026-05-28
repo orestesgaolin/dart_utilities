@@ -2,6 +2,7 @@ import 'dart:io';
 
 import '../storage/models.dart';
 import 'file_identity.dart';
+import 'native_directory_reader.dart';
 
 /// Progress data reported during a scan.
 class ScanProgress {
@@ -79,7 +80,13 @@ class DiskScanner {
 
     // Track seen (device, inode) pairs to detect hardlinks
     final seenInodes = <FileId>{};
-    final hasNativeIdentity = FileIdentity.isAvailable;
+    final identity = FileIdentityReader();
+    final hasNativeIdentity = identity.isAvailable;
+    final useNativeDirectoryWalk =
+        hasNativeIdentity &&
+        identity.supportsStatAt &&
+        NativeDirectoryReader.isAvailable &&
+        !followLinks;
 
     // Track seen directory inodes to detect firmlinks/bind mounts that
     // loop back to already-scanned directories (e.g. macOS /.nofollow).
@@ -90,7 +97,7 @@ class DiskScanner {
     // skipped to avoid double-counting.
     int? rootDeviceId;
     if (hasNativeIdentity) {
-      final rootStat = FileIdentity.stat(canonicalRoot);
+      final rootStat = identity.stat(canonicalRoot);
       if (rootStat != null) {
         rootDeviceId = rootStat.id.$1;
         seenDirInodes.add(rootStat.id);
@@ -108,13 +115,15 @@ class DiskScanner {
       final now = DateTime.now();
       if (now.difference(lastProgressTime).inMilliseconds < 100) return;
       lastProgressTime = now;
-      onProgress(ScanProgress(
-        currentPath: path,
-        filesScanned: totalFiles,
-        dirsScanned: totalDirs,
-        bytesScanned: totalBytes,
-        hardlinksSkipped: hardlinksSkipped,
-      ));
+      onProgress(
+        ScanProgress(
+          currentPath: path,
+          filesScanned: totalFiles,
+          dirsScanned: totalDirs,
+          bytesScanned: totalBytes,
+          hardlinksSkipped: hardlinksSkipped,
+        ),
+      );
     }
 
     bool isTimedOut() {
@@ -128,21 +137,121 @@ class DiskScanner {
     /// Returns 0 if this is a duplicate hardlink.
     /// Uses native stat for physical size (st_blocks * 512) when available,
     /// falls back to Dart's statSync().size (logical size).
+    int getFileSizeFromStat(NativeStat nstat) {
+      if (nstat.nlink > 1 && !seenInodes.add(nstat.id)) {
+        hardlinksSkipped++;
+        return 0;
+      }
+      return nstat.physicalSize;
+    }
+
     int getFileSize(String path) {
       if (hasNativeIdentity) {
-        final nstat = FileIdentity.stat(path);
-        if (nstat != null) {
-          // Check for hardlink duplicate
-          if (nstat.nlink > 1 && !seenInodes.add(nstat.id)) {
-            hardlinksSkipped++;
-            return 0;
-          }
-          // Use physical block-based size (matches du/Finder)
-          return nstat.physicalSize;
-        }
+        final nstat = identity.stat(path);
+        if (nstat != null) return getFileSizeFromStat(nstat);
       }
+
       // Fallback: Dart logical size
       return File(path).statSync().size;
+    }
+
+    String childPath(String parent, String name) {
+      return parent == '/' ? '/$name' : '$parent/$name';
+    }
+
+    Future<int> walkNative(String dirPath, int depth) async {
+      if (isTimedOut()) return 0;
+      if (maxDepth != null && depth > maxDepth!) return 0;
+
+      var dirSize = 0;
+      NativeDirectory? dir;
+
+      try {
+        dir = NativeDirectoryReader.open(dirPath);
+        while (true) {
+          if (isTimedOut()) break;
+
+          final name = dir.nextName();
+          if (name == null) break;
+
+          final childDepth = depth + 1;
+          final fullPath = childPath(dirPath, name);
+
+          try {
+            final stat = identity.statAt(dir.fd, name);
+            if (stat == null) {
+              errors.add('Cannot access $fullPath');
+              continue;
+            }
+
+            if (stat.type == NativeFileType.file) {
+              final size = getFileSizeFromStat(stat);
+
+              onEntry(
+                FileEntry(
+                  path: fullPath,
+                  isDirectory: false,
+                  size: size,
+                  depth: childDepth,
+                  parentPath: dirPath,
+                ),
+              );
+              dirSize += size;
+              totalFiles++;
+              totalBytes += size;
+              reportProgress(fullPath);
+            } else if (stat.type == NativeFileType.directory) {
+              if (systemMirrorPaths.contains(fullPath)) {
+                continue;
+              }
+              if (rootDeviceId != null && stat.id.$1 != rootDeviceId) {
+                continue;
+              }
+              if (!seenDirInodes.add(stat.id)) {
+                continue;
+              }
+
+              totalDirs++;
+              reportProgress(fullPath);
+
+              if (collapsedDirs.contains(name)) {
+                final collapsedSize = await _getDirSize(fullPath, identity);
+                onEntry(
+                  FileEntry(
+                    path: fullPath,
+                    isDirectory: true,
+                    size: collapsedSize,
+                    depth: childDepth,
+                    parentPath: dirPath,
+                  ),
+                );
+                dirSize += collapsedSize;
+                totalBytes += collapsedSize;
+              } else {
+                final childSize = await walkNative(fullPath, childDepth);
+                onEntry(
+                  FileEntry(
+                    path: fullPath,
+                    isDirectory: true,
+                    size: childSize,
+                    depth: childDepth,
+                    parentPath: dirPath,
+                  ),
+                );
+                dirSize += childSize;
+              }
+            }
+          } catch (e) {
+            errors.add('Cannot access $fullPath: $e');
+          }
+        }
+      } catch (e) {
+        errors.add('Cannot list $dirPath: $e');
+      } finally {
+        dir?.close();
+      }
+
+      return dirSize;
     }
 
     Future<int> walk(String dirPath, int depth) async {
@@ -162,13 +271,15 @@ class DiskScanner {
             if (entity is File) {
               final size = getFileSize(entity.path);
 
-              onEntry(FileEntry(
-                path: entity.path,
-                isDirectory: false,
-                size: size,
-                depth: childDepth,
-                parentPath: dirPath,
-              ));
+              onEntry(
+                FileEntry(
+                  path: entity.path,
+                  isDirectory: false,
+                  size: size,
+                  depth: childDepth,
+                  parentPath: dirPath,
+                ),
+              );
               dirSize += size;
               totalFiles++;
               totalBytes += size;
@@ -184,10 +295,9 @@ class DiskScanner {
               // Skip directories on different devices (cross-device mounts)
               // and directories we've already seen (firmlinks like /.nofollow)
               if (hasNativeIdentity) {
-                final dirStat = FileIdentity.stat(entity.path);
+                final dirStat = identity.stat(entity.path);
                 if (dirStat != null) {
-                  if (rootDeviceId != null &&
-                      dirStat.id.$1 != rootDeviceId) {
+                  if (rootDeviceId != null && dirStat.id.$1 != rootDeviceId) {
                     continue;
                   }
                   if (!seenDirInodes.add(dirStat.id)) {
@@ -200,27 +310,32 @@ class DiskScanner {
 
               // Collapsed dirs: record total size without recursing
               final dirBaseName = entity.path.substring(
-                  entity.path.lastIndexOf('/') + 1);
+                entity.path.lastIndexOf('/') + 1,
+              );
               if (collapsedDirs.contains(dirBaseName)) {
-                final collapsedSize = await _getDirSize(entity.path);
-                onEntry(FileEntry(
-                  path: entity.path,
-                  isDirectory: true,
-                  size: collapsedSize,
-                  depth: childDepth,
-                  parentPath: dirPath,
-                ));
+                final collapsedSize = await _getDirSize(entity.path, identity);
+                onEntry(
+                  FileEntry(
+                    path: entity.path,
+                    isDirectory: true,
+                    size: collapsedSize,
+                    depth: childDepth,
+                    parentPath: dirPath,
+                  ),
+                );
                 dirSize += collapsedSize;
                 totalBytes += collapsedSize;
               } else {
                 final childSize = await walk(entity.path, childDepth);
-                onEntry(FileEntry(
-                  path: entity.path,
-                  isDirectory: true,
-                  size: childSize,
-                  depth: childDepth,
-                  parentPath: dirPath,
-                ));
+                onEntry(
+                  FileEntry(
+                    path: entity.path,
+                    isDirectory: true,
+                    size: childSize,
+                    depth: childDepth,
+                    parentPath: dirPath,
+                  ),
+                );
                 dirSize += childSize;
               }
             }
@@ -235,29 +350,36 @@ class DiskScanner {
       return dirSize;
     }
 
-    final totalSize = await walk(canonicalRoot, 0);
+    try {
+      final totalSize = useNativeDirectoryWalk
+          ? await walkNative(canonicalRoot, 0)
+          : await walk(canonicalRoot, 0);
 
-    return ScanResult(
-      rootPath: canonicalRoot,
-      totalSize: totalSize,
-      fileCount: totalFiles,
-      dirCount: totalDirs,
-      errors: errors,
-      timedOut: _timedOut,
-      hardlinksSkipped: hardlinksSkipped,
-    );
+      return ScanResult(
+        rootPath: canonicalRoot,
+        totalSize: totalSize,
+        fileCount: totalFiles,
+        dirCount: totalDirs,
+        errors: errors,
+        timedOut: _timedOut,
+        hardlinksSkipped: hardlinksSkipped,
+      );
+    } finally {
+      identity.dispose();
+    }
   }
 
   /// Get total physical size of a directory without recursing into it entry by entry.
   /// Uses the native file system to compute the total allocation.
-  Future<int> _getDirSize(String dirPath) async {
+  Future<int> _getDirSize(String dirPath, FileIdentityReader identity) async {
     var total = 0;
     try {
-      await for (final entity
-          in Directory(dirPath).list(recursive: true, followLinks: false)) {
+      await for (final entity in Directory(
+        dirPath,
+      ).list(recursive: true, followLinks: false)) {
         if (entity is File) {
-          if (FileIdentity.isAvailable) {
-            final stat = FileIdentity.stat(entity.path);
+          if (identity.isAvailable) {
+            final stat = identity.stat(entity.path);
             if (stat != null) {
               total += stat.physicalSize;
               continue;

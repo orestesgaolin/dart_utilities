@@ -24,11 +24,7 @@ class ScanCommand extends Command<void> {
         help: 'Follow symbolic links.',
         defaultsTo: false,
       )
-      ..addOption(
-        'max-depth',
-        help: 'Maximum depth to scan.',
-        valueHelp: 'N',
-      )
+      ..addOption('max-depth', help: 'Maximum depth to scan.', valueHelp: 'N')
       ..addOption(
         'timeout',
         help: 'Stop scanning after this duration (e.g., 5m, 1h, 30s).',
@@ -36,9 +32,16 @@ class ScanCommand extends Command<void> {
       )
       ..addMultiOption(
         'ignore-dirs',
-        help: 'Directory names to collapse (record size only, don\'t recurse). '
+        help:
+            'Directory names to collapse (record size only, don\'t recurse). '
             'Defaults to config file values (node_modules, .git).',
         valueHelp: 'NAME',
+      )
+      ..addOption(
+        'batch-size',
+        help: 'Number of entries to insert per SQLite transaction.',
+        defaultsTo: '5000',
+        valueHelp: 'N',
       );
   }
 
@@ -59,16 +62,23 @@ class ScanCommand extends Command<void> {
     final timeoutStr = argResults!.option('timeout');
     final timeout = timeoutStr != null ? _parseDuration(timeoutStr) : null;
     final ignoreDirsArg = argResults!.multiOption('ignore-dirs');
+    final batchSizeStr = argResults!.option('batch-size')!;
+    final batchSize = int.tryParse(batchSizeStr);
 
     if (timeoutStr != null && timeout == null) {
       stderr.writeln('Error: Invalid timeout format. Use e.g., 30s, 5m, 1h.');
       return;
     }
+    if (batchSize == null || batchSize <= 0) {
+      stderr.writeln('Error: --batch-size must be a positive integer.');
+      return;
+    }
 
     // Use CLI override or fall back to config file
     final config = AnalyzerConfig.load();
-    final collapsedDirs =
-        ignoreDirsArg.isNotEmpty ? ignoreDirsArg : config.collapsedDirs;
+    final collapsedDirs = ignoreDirsArg.isNotEmpty
+        ? ignoreDirsArg
+        : config.collapsedDirs;
 
     final scanner = DiskScanner(
       followLinks: followLinks,
@@ -98,12 +108,14 @@ class ScanCommand extends Command<void> {
       }
       // Delete old subtree entries (we'll replace them)
       db.deleteSubtree(scanId, absPath);
-      stdout.writeln('  📎 Merging into parent scan #$scanId (${parentScan.rootPath})');
+      stdout.writeln(
+        '  📎 Merging into parent scan #$scanId (${parentScan.rootPath})',
+      );
     } else {
       scanId = db.createScan(rootPath: absPath);
     }
 
-    final writer = db.batchWriter(scanId);
+    final writer = db.batchWriter(scanId, batchSize: batchSize);
 
     stdout.write('  🔍 Scanning $absPath ...');
     if (timeout != null) {
@@ -115,13 +127,15 @@ class ScanCommand extends Command<void> {
     var lastSaveTime = DateTime.now();
 
     // Add root entry
-    writer.add(FileEntry(
-      path: absPath,
-      isDirectory: true,
-      size: 0, // Will be updated at end
-      depth: depthOffset,
-      parentPath: merging ? p.dirname(absPath) : null,
-    ));
+    writer.add(
+      FileEntry(
+        path: absPath,
+        isDirectory: true,
+        size: 0, // Will be updated at end
+        depth: depthOffset,
+        parentPath: merging ? p.dirname(absPath) : null,
+      ),
+    );
 
     try {
       final result = await scanner.scan(
@@ -159,7 +173,7 @@ class ScanCommand extends Command<void> {
             '${progress.filesScanned} files, '
             '${progress.dirsScanned} dirs, '
             '$sizeStr$hlInfo '
-            '· ../$dir${' ' * 20}'
+            '· ../$dir${' ' * 20}',
           );
         },
       );
@@ -191,7 +205,9 @@ class ScanCommand extends Command<void> {
 
       final status = result.timedOut ? 'interrupted' : 'complete';
       if (result.timedOut) {
-        stdout.writeln('\r  ⏱️  Scan timed out after ${_formatElapsed(stopwatch.elapsed)}${' ' * 30}');
+        stdout.writeln(
+          '\r  ⏱️  Scan timed out after ${_formatElapsed(stopwatch.elapsed)}${' ' * 30}',
+        );
         stdout.writeln('  Partial results have been saved.');
       } else {
         stdout.writeln('\r  ✅ Scan complete!${' ' * 60}');
@@ -201,7 +217,9 @@ class ScanCommand extends Command<void> {
       stdout.writeln('  📊 Summary');
       stdout.writeln('  ${'─' * 40}');
       stdout.writeln('  Path:        $absPath');
-      stdout.writeln('  Total size:  ${SizeFormatter.format(result.totalSize)}');
+      stdout.writeln(
+        '  Total size:  ${SizeFormatter.format(result.totalSize)}',
+      );
       stdout.writeln('  Files:       ${result.fileCount}');
       stdout.writeln('  Directories: ${result.dirCount}');
       stdout.writeln('  Time:        ${_formatElapsed(stopwatch.elapsed)}');
@@ -212,7 +230,9 @@ class ScanCommand extends Command<void> {
         stdout.writeln('  Merged into: ${parentScan.rootPath}');
       }
       if (result.hardlinksSkipped > 0) {
-        stdout.writeln('  Hardlinks:   ${result.hardlinksSkipped} duplicates skipped');
+        stdout.writeln(
+          '  Hardlinks:   ${result.hardlinksSkipped} duplicates skipped',
+        );
       }
       if (result.errors.isNotEmpty) {
         stdout.writeln('  Errors:      ${result.errors.length}');
@@ -236,7 +256,9 @@ class ScanCommand extends Command<void> {
           status: 'interrupted',
         );
       }
-      stderr.writeln('\r  ⚠️  Scan interrupted. Partial results saved (scan #$scanId).${' ' * 20}');
+      stderr.writeln(
+        '\r  ⚠️  Scan interrupted. Partial results saved (scan #$scanId).${' ' * 20}',
+      );
       rethrow;
     } finally {
       db.close();

@@ -117,9 +117,22 @@ lib/
 ```
 
 - **Storage**: SQLite with WAL mode, composite indexes for fast queries, batch inserts (5000/batch)
-- **Scanner**: Streaming via callbacks (bounded memory), native `lstat()` for physical sizes
+- **Scanner**: Streaming via callbacks (bounded memory), native `readdir()`/`fstatat()` traversal on macOS/Linux, native `lstat()` fallback for physical sizes
 - **TUI**: Built with [nocterm](https://pub.dev/packages/nocterm), Flutter-like stateful components
 - **Isolates**: Background scans run in separate isolates with their own DB connections
+
+## Benchmarks
+
+The `benchmark/` directory contains a reproducible scan benchmark harness that
+compares scanner-only runs, scanner + SQLite runs, full CLI scans, and ncdu
+scan/export modes when `ncdu` is installed.
+
+```bash
+dart run benchmark/scan_benchmark.dart --profiles smoke,mixed --iterations 5
+```
+
+See `benchmark/README.md` for fixture profiles, ncdu parity commands, and notes
+on interpreting warm-cache results.
 
 ## Data Location
 
