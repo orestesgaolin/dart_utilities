@@ -2,19 +2,20 @@
 
 **Performance**
 
-- **disk_analyzer_cli**: add native `readdir()`/`fstatat()` traversal on macOS and Linux for much faster scans.
-- **disk_analyzer_cli**: reuse native stat/path buffers during scans to reduce allocation overhead.
-- **disk_analyzer_cli**: add scan benchmarks with ncdu comparisons and real-directory targets.
+- add native `readdir()`/`fstatat()` traversal on macOS and Linux for much faster scans.
+- reuse native stat/path buffers during scans to reduce allocation overhead.
+- add scan benchmarks with ncdu comparisons and real-directory targets.
 
 **Features**
 
-- **disk_analyzer_cli**: add `scan --batch-size` for tuning SQLite write batches.
+- add `scan --batch-size` for tuning SQLite write batches.
+- edit ignored folders in tui
 
 ## 1.0.1
 
 **Bug Fixes**
 
-- **disk_analyzer_cli**: enhance index creation for entries to improve query performance
+- enhance index creation for entries to improve query performance
 
 ## 1.0.0
 
