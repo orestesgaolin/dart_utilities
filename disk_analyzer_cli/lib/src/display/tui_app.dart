@@ -28,12 +28,12 @@ class _DisplayEntry {
 
   /// Create from a cached DB entry (always scanned).
   factory _DisplayEntry.fromDb(FileEntry e) => _DisplayEntry(
-        path: e.path,
-        name: e.name,
-        isDirectory: e.isDirectory,
-        size: e.size,
-        isScanned: true,
-      );
+    path: e.path,
+    name: e.name,
+    isDirectory: e.isDirectory,
+    size: e.size,
+    isScanned: true,
+  );
 }
 
 /// Interactive TUI app for exploring disk usage.
@@ -62,6 +62,7 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
   FileEntry? _currentEntry;
   late int _rootTotalSize;
   final _scrollController = ScrollController();
+  final _collapsedDirController = TextEditingController();
 
   /// Remembers which child was selected when navigating into a folder,
   /// keyed by parent path -> child path.
@@ -85,6 +86,12 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
   /// Selected index within the settings panel.
   int _settingsIndex = 0;
 
+  /// Whether the settings panel is prompting for a new ignored folder name.
+  bool _isAddingCollapsedDir = false;
+
+  /// Status message shown within the settings panel.
+  String? _settingsStatusMessage;
+
   /// Last progress data from the worker (applied on throttle tick).
   ScanWorkerProgress? _pendingProgress;
 
@@ -93,7 +100,8 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
     super.initState();
     _pathStack = [component.rootPath];
 
-    final scan = component.db.getLatestScan(component.rootPath) ??
+    final scan =
+        component.db.getLatestScan(component.rootPath) ??
         component.db.findScanContaining(component.rootPath);
     _rootTotalSize = scan?.totalSize ?? 0;
 
@@ -142,8 +150,7 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
   /// Lists the actual directory on disk, adds unscanned files to the DB,
   /// removes stale DB entries for files/dirs that no longer exist, and
   /// appends unscanned directories to the display list.
-  Future<void> _syncWithDisk(
-      String parentPath, Set<String> cachedPaths) async {
+  Future<void> _syncWithDisk(String parentPath, Set<String> cachedPaths) async {
     final dir = Directory(parentPath);
     if (!dir.existsSync()) return;
 
@@ -152,8 +159,10 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
       final unscannedDirs = <_DisplayEntry>[];
 
       // Get parent depth to calculate child depth
-      final parentDepth =
-          component.db.getEntryDepth(component.scanId, parentPath);
+      final parentDepth = component.db.getEntryDepth(
+        component.scanId,
+        parentPath,
+      );
       final childDepth = (parentDepth ?? 0) + 1;
 
       await for (final entity in dir.list(followLinks: false)) {
@@ -177,13 +186,15 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
             );
           } else {
             // Collect unscanned dirs for display (not auto-added)
-            unscannedDirs.add(_DisplayEntry(
-              path: entity.path,
-              name: p.basename(entity.path),
-              isDirectory: true,
-              size: 0,
-              isScanned: false,
-            ));
+            unscannedDirs.add(
+              _DisplayEntry(
+                path: entity.path,
+                name: p.basename(entity.path),
+                isDirectory: true,
+                size: 0,
+                isScanned: false,
+              ),
+            );
           }
         }
       }
@@ -198,9 +209,8 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
       if (!mounted) return;
 
       // Check if any files were added or removed
-      final filesChanged = cachedPaths
-              .difference(diskPaths)
-              .isNotEmpty ||
+      final filesChanged =
+          cachedPaths.difference(diskPaths).isNotEmpty ||
           diskPaths.difference(cachedPaths).any((path) {
             try {
               return !FileSystemEntity.isDirectorySync(path);
@@ -217,8 +227,7 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
           sortBy: 'size',
           descending: true,
         );
-        final refreshedDisplay =
-            refreshed.map(_DisplayEntry.fromDb).toList();
+        final refreshedDisplay = refreshed.map(_DisplayEntry.fromDb).toList();
 
         // Preserve selection by path
         final currentSelectedPath = _entries.isNotEmpty
@@ -228,8 +237,9 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
         setState(() {
           _entries = [...refreshedDisplay, ...unscannedDirs];
           if (currentSelectedPath != null) {
-            final idx =
-                _entries.indexWhere((e) => e.path == currentSelectedPath);
+            final idx = _entries.indexWhere(
+              (e) => e.path == currentSelectedPath,
+            );
             if (idx >= 0) _selectedIndex = idx;
           }
         });
@@ -248,6 +258,7 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
   void dispose() {
     _progressThrottle?.cancel();
     _scrollController.dispose();
+    _collapsedDirController.dispose();
     super.dispose();
   }
 
@@ -340,7 +351,8 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
     if (mounted) setState(() => _statusMessage = _buildQueueStatus());
 
     // Calculate depth offset relative to the scan root
-    final scan = component.db.getLatestScan(component.rootPath) ??
+    final scan =
+        component.db.getLatestScan(component.rootPath) ??
         component.db.findScanContaining(component.rootPath);
     final rootPath = scan?.rootPath ?? component.rootPath;
     final depthOffset =
@@ -379,7 +391,8 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
           _progressThrottle?.cancel();
           _pendingProgress = null;
 
-          final updatedScan = component.db.getLatestScan(rootPath) ??
+          final updatedScan =
+              component.db.getLatestScan(rootPath) ??
               component.db.findScanContaining(rootPath);
           _rootTotalSize = updatedScan?.totalSize ?? _rootTotalSize;
 
@@ -475,7 +488,10 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
           return true;
         }
         // o = open in Finder
-        if (event.logicalKey == LogicalKey.keyO && !event.isShiftPressed && !event.isMetaPressed && !event.isControlPressed) {
+        if (event.logicalKey == LogicalKey.keyO &&
+            !event.isShiftPressed &&
+            !event.isMetaPressed &&
+            !event.isControlPressed) {
           _openInFinder();
           return true;
         }
@@ -489,16 +505,20 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
         }
         if (event.logicalKey == LogicalKey.pageUp) {
           setState(() {
-            _selectedIndex =
-                (_selectedIndex - 20).clamp(0, _entries.length - 1);
+            _selectedIndex = (_selectedIndex - 20).clamp(
+              0,
+              _entries.length - 1,
+            );
           });
           _scrollToSelected();
           return true;
         }
         if (event.logicalKey == LogicalKey.pageDown) {
           setState(() {
-            _selectedIndex =
-                (_selectedIndex + 20).clamp(0, _entries.length - 1);
+            _selectedIndex = (_selectedIndex + 20).clamp(
+              0,
+              _entries.length - 1,
+            );
           });
           _scrollToSelected();
           return true;
@@ -530,25 +550,25 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
               child: _showSettings
                   ? _buildSettingsPanel()
                   : _entries.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No entries found',
-                            style: TextStyle(color: Colors.gray),
-                          ),
-                        )
-                      : ListView.builder(
-                          controller: _scrollController,
-                          keyboardScrollable: false,
-                          itemExtent: 1,
-                          itemCount: _entries.length,
-                          itemBuilder: (context, index) {
-                            return _buildEntryRow(
-                              _entries[index],
-                              index,
-                              currentSize,
-                            );
-                          },
-                        ),
+                  ? Center(
+                      child: Text(
+                        'No entries found',
+                        style: TextStyle(color: Colors.gray),
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      keyboardScrollable: false,
+                      itemExtent: 1,
+                      itemCount: _entries.length,
+                      itemBuilder: (context, index) {
+                        return _buildEntryRow(
+                          _entries[index],
+                          index,
+                          currentSize,
+                        );
+                      },
+                    ),
             ),
             Divider(style: DividerStyle.single, color: Colors.gray),
             _buildFooter(),
@@ -561,9 +581,11 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
   Component _buildHeader(int currentSize) {
     final breadcrumb = _pathStack.length > 1
         ? _pathStack
-            .map((seg) =>
-                seg.split('/').last.isEmpty ? '/' : seg.split('/').last)
-            .join(' \u{203a} ')
+              .map(
+                (seg) =>
+                    seg.split('/').last.isEmpty ? '/' : seg.split('/').last,
+              )
+              .join(' \u{203a} ')
         : _currentPath;
 
     return Padding(
@@ -654,8 +676,9 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
 
     final bgColor = isSelected ? Color.fromRGB(30, 50, 70) : null;
 
-    final dirIndicator =
-        entry.isDirectory ? (entry.isScanned ? ' \u{25b8}' : ' \u{26a1}') : '';
+    final dirIndicator = entry.isDirectory
+        ? (entry.isScanned ? ' \u{25b8}' : ' \u{26a1}')
+        : '';
 
     return Container(
       decoration: bgColor != null ? BoxDecoration(color: bgColor) : null,
@@ -710,10 +733,20 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
   bool _handleSettingsKey(KeyboardEvent event) {
     final items = _settingsItems;
 
+    if (_isAddingCollapsedDir) {
+      if (event.logicalKey == LogicalKey.escape) {
+        _cancelAddingCollapsedDir();
+      }
+      return true;
+    }
+
     if (event.logicalKey == LogicalKey.escape ||
         event.logicalKey == LogicalKey.comma ||
         event.logicalKey == LogicalKey.backspace) {
-      setState(() => _showSettings = false);
+      setState(() {
+        _showSettings = false;
+        _settingsStatusMessage = null;
+      });
       return true;
     }
     if (event.logicalKey == LogicalKey.arrowUp) {
@@ -745,7 +778,10 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
       return true;
     }
     if (event.logicalKey == LogicalKey.keyQ) {
-      setState(() => _showSettings = false);
+      setState(() {
+        _showSettings = false;
+        _settingsStatusMessage = null;
+      });
       return true;
     }
     return true; // Consume all keys in settings mode
@@ -763,6 +799,7 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
     if (index < 0 || index >= items.length) return;
     setState(() {
       component.config.collapsedDirs.removeAt(index);
+      _settingsStatusMessage = null;
       component.config.save();
     });
   }
@@ -775,37 +812,56 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
       if (_settingsIndex >= items.length && items.isNotEmpty) {
         _settingsIndex = items.length - 1;
       }
+      _settingsStatusMessage = null;
       component.config.save();
     });
   }
 
   void _addCollapsedDir() {
-    // Add a placeholder — in a real app this would be an input field.
-    // For now, cycle through common defaults not already in the list.
-    const suggestions = [
-      'node_modules',
-      '.git',
-      'build',
-      '.dart_tool',
-      'target',
-      '.gradle',
-      '__pycache__',
-      'venv',
-      '.venv',
-      'dist',
-      'vendor',
-      'Pods',
-      '.cache',
-    ];
-    final current = component.config.collapsedDirs.toSet();
-    final next = suggestions.where((s) => !current.contains(s)).firstOrNull;
-    if (next != null) {
-      setState(() {
-        component.config.collapsedDirs.add(next);
-        _settingsIndex = component.config.collapsedDirs.length - 1;
-        component.config.save();
-      });
+    setState(() {
+      _collapsedDirController.clear();
+      _isAddingCollapsedDir = true;
+      _settingsStatusMessage = null;
+    });
+  }
+
+  void _cancelAddingCollapsedDir() {
+    setState(() {
+      _collapsedDirController.clear();
+      _isAddingCollapsedDir = false;
+      _settingsStatusMessage = null;
+    });
+  }
+
+  void _submitCollapsedDir(String value) {
+    final name = value.trim();
+    if (name.isEmpty) {
+      setState(() => _settingsStatusMessage = 'Enter a folder name.');
+      return;
     }
+    if (name.contains('/') || name.contains('\\')) {
+      setState(() => _settingsStatusMessage = 'Use a folder name, not a path.');
+      return;
+    }
+
+    final items = component.config.collapsedDirs;
+    final existingIndex = items.indexOf(name);
+    if (existingIndex >= 0) {
+      setState(() {
+        _settingsIndex = existingIndex;
+        _settingsStatusMessage = '$name is already ignored.';
+      });
+      return;
+    }
+
+    setState(() {
+      items.add(name);
+      _settingsIndex = items.length - 1;
+      _collapsedDirController.clear();
+      _isAddingCollapsedDir = false;
+      _settingsStatusMessage = 'Added $name.';
+      component.config.save();
+    });
   }
 
   Component _buildSettingsPanel() {
@@ -830,8 +886,9 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
             final isSelected = index == _settingsIndex;
             final bgColor = isSelected ? Color.fromRGB(30, 50, 70) : null;
             return Container(
-              decoration:
-                  bgColor != null ? BoxDecoration(color: bgColor) : null,
+              decoration: bgColor != null
+                  ? BoxDecoration(color: bgColor)
+                  : null,
               child: Text(
                 '  ${isSelected ? '\u{25b6}' : ' '} ${items[index]}',
                 style: TextStyle(
@@ -842,13 +899,41 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
             );
           }),
           if (items.isEmpty)
+            Text('  (none)', style: TextStyle(color: Colors.brightBlack)),
+          if (_isAddingCollapsedDir)
+            Row(
+              children: [
+                Text('  Add: ', style: TextStyle(color: Colors.gray)),
+                Expanded(
+                  child: TextField(
+                    controller: _collapsedDirController,
+                    focused: true,
+                    placeholder: 'folder name',
+                    placeholderStyle: TextStyle(color: Colors.brightBlack),
+                    style: TextStyle(color: Colors.white),
+                    maxLines: 1,
+                    onSubmitted: _submitCollapsedDir,
+                    onKeyEvent: (event) {
+                      if (event.logicalKey == LogicalKey.escape) {
+                        _cancelAddingCollapsedDir();
+                        return true;
+                      }
+                      return false;
+                    },
+                  ),
+                ),
+              ],
+            ),
+          if (_settingsStatusMessage != null)
             Text(
-              '  (none)',
-              style: TextStyle(color: Colors.brightBlack),
+              '  $_settingsStatusMessage',
+              style: TextStyle(color: Colors.yellow),
             ),
           SizedBox(height: 1),
           Text(
-            '\u{2191}\u{2193} Select  a Add  d Remove  Esc/,/q Close',
+            _isAddingCollapsedDir
+                ? 'Type folder name  Enter Save  Esc Cancel'
+                : '\u{2191}\u{2193} Select  a Add  d Remove  Esc/,/q Close',
             style: TextStyle(color: Colors.gray),
           ),
         ],
@@ -859,8 +944,9 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
   Component _buildFooter() {
     final scannedCount = _entries.where((e) => e.isScanned).length;
     final totalCount = _entries.length;
-    final scannedSize =
-        _entries.where((e) => e.isScanned).fold<int>(0, (s, e) => s + e.size);
+    final scannedSize = _entries
+        .where((e) => e.isScanned)
+        .fold<int>(0, (s, e) => s + e.size);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 1),
