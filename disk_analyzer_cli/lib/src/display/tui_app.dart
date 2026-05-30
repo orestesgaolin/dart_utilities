@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../config.dart';
 import '../display/size_formatter.dart';
+import '../display/treemap_view.dart';
 import '../scanner/scan_worker.dart';
 import '../storage/database.dart';
 import '../storage/models.dart';
@@ -82,6 +83,12 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
 
   /// Whether the settings panel is visible.
   bool _showSettings = false;
+
+  /// Whether the treemap view is visible.
+  bool _showTreemap = false;
+
+  /// Key to access the treemap state for keyboard navigation.
+  final _treemapKey = GlobalKey<TreemapViewState>();
 
   /// Selected index within the settings panel.
   int _settingsIndex = 0;
@@ -449,6 +456,11 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
           return _handleSettingsKey(event);
         }
 
+        // Treemap view key handling
+        if (_showTreemap) {
+          return _handleTreemapKey(event);
+        }
+
         if (event.logicalKey == LogicalKey.keyQ ||
             event.logicalKey == LogicalKey.escape && _pathStack.length <= 1) {
           shutdownApp();
@@ -493,6 +505,11 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
             !event.isMetaPressed &&
             !event.isControlPressed) {
           _openInFinder();
+          return true;
+        }
+        // t = toggle treemap view
+        if (event.logicalKey == LogicalKey.keyT) {
+          setState(() => _showTreemap = true);
           return true;
         }
         // , = open settings
@@ -549,6 +566,27 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
             Expanded(
               child: _showSettings
                   ? _buildSettingsPanel()
+                  : _showTreemap
+                  ? TreemapView(
+                      key: _treemapKey,
+                      db: component.db,
+                      scanId: component.scanId,
+                      rootPath: _currentPath,
+                      totalSize: currentSize,
+                      onNavigate: (path, size) {
+                        final entry = _entries.firstWhere(
+                          (e) => e.path == path,
+                          orElse: () => _DisplayEntry(
+                            path: path,
+                            name: p.basename(path),
+                            isDirectory: true,
+                            size: size,
+                            isScanned: true,
+                          ),
+                        );
+                        _navigateInto(entry);
+                      },
+                    )
                   : _entries.isEmpty
                   ? Center(
                       child: Text(
@@ -728,6 +766,33 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
         },
       ),
     );
+  }
+
+  bool _handleTreemapKey(KeyboardEvent event) {
+    // Close the treemap.
+    if (event.logicalKey == LogicalKey.keyT ||
+        event.logicalKey == LogicalKey.keyQ ||
+        event.logicalKey == LogicalKey.escape) {
+      setState(() => _showTreemap = false);
+      return true;
+    }
+    // Navigate up the path stack.
+    if (event.logicalKey == LogicalKey.backspace) {
+      _navigateBack();
+      return true;
+    }
+    final treemap = _treemapKey.currentState;
+    if (treemap == null) return true;
+    // Move highlight with arrow keys.
+    if (treemap.moveHighlight(event.logicalKey)) {
+      return true;
+    }
+    // Enter drills into the highlighted directory.
+    if (event.logicalKey == LogicalKey.enter) {
+      treemap.enterHighlighted();
+      return true;
+    }
+    return true; // Consume all keys in treemap mode
   }
 
   bool _handleSettingsKey(KeyboardEvent event) {
@@ -955,7 +1020,9 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
         children: [
           Expanded(
             child: Text(
-              '\u{2191}\u{2193} Nav  \u{23ce} Open  \u{232b} Back  s Scan  S All  o Finder  , Settings  q Quit',
+              _showTreemap
+                  ? '\u{2191}\u{2193}\u{2190}\u{2192} Move  \u{23ce} Open  \u{232b} Back  t/Esc Close'
+                  : '\u{2191}\u{2193} Nav  \u{23ce} Open  \u{232b} Back  s Scan  S All  o Finder  t Treemap  , Settings  q Quit',
               style: TextStyle(color: Colors.gray),
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
