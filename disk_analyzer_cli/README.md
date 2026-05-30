@@ -69,8 +69,8 @@ disk_analyzer_cli tui /Users/dominik
 | Key                 | Action                                |
 | ------------------- | ------------------------------------- |
 | `↑` `↓`             | Navigate entries                      |
-| `Enter`             | Open folder                           |
-| `Backspace` / `Esc` | Go back (restores previous selection) |
+| `Enter` / `→`       | Open folder                           |
+| `Backspace` / `Esc` / `←` | Go back (restores previous selection) |
 | `s`                 | Scan selected folder (background)     |
 | `a`                 | Scan all unscanned folders            |
 | `o`                 | Open in Finder                        |

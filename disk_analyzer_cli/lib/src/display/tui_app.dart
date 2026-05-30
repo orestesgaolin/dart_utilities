@@ -490,10 +490,15 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
           _scrollToSelected();
           return true;
         }
-        if (event.logicalKey == LogicalKey.enter) {
+        if (event.logicalKey == LogicalKey.enter ||
+            event.logicalKey == LogicalKey.arrowRight) {
           if (_entries.isNotEmpty && _entries[_selectedIndex].isDirectory) {
             _navigateInto(_entries[_selectedIndex]);
           }
+          return true;
+        }
+        if (event.logicalKey == LogicalKey.arrowLeft) {
+          _navigateBack();
           return true;
         }
         // s = scan selected
@@ -1050,7 +1055,7 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
             child: Text(
               _showTreemap
                   ? '\u{2191}\u{2193}\u{2190}\u{2192} Move  \u{23ce} Open  s Scan  o Finder  r Reload  \u{232b} Back  t/Esc Close'
-                  : '\u{2191}\u{2193} Nav  \u{23ce} Open  \u{232b} Back  s Scan  a All  o Finder  t Treemap  , Settings  q Quit',
+                  : '\u{2191}\u{2193} Nav  \u{2192}/\u{23ce} Open  \u{2190}/\u{232b} Back  s Scan  a All  o Finder  t Treemap  , Settings  q Quit',
               style: TextStyle(color: Colors.gray),
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
