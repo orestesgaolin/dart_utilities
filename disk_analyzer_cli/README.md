@@ -72,12 +72,16 @@ disk_analyzer_cli tui /Users/dominik
 | `Enter`             | Open folder                           |
 | `Backspace` / `Esc` | Go back (restores previous selection) |
 | `s`                 | Scan selected folder (background)     |
-| `S` (Shift+S)       | Scan all unscanned folders            |
+| `a`                 | Scan all unscanned folders            |
 | `o`                 | Open in Finder                        |
 | `r`                 | Reload current view                   |
+| `t`                 | Toggle treemap view                   |
 | `PgUp` / `PgDn`     | Page navigation                       |
 | `Home` / `End`      | Jump to first/last                    |
 | `q`                 | Quit                                  |
+
+In the treemap view (`t`), arrow keys move the highlight, `Enter` drills into a
+folder, and `s` / `o` / `r` scan, open in Finder, or reload the highlighted tile.
 
 The TUI automatically discovers folders on disk that aren't in the cache (shown with `📂⚡`), auto-adds new files, and prunes deleted entries when opening a folder.
 

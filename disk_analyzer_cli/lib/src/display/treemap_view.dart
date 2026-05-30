@@ -396,6 +396,27 @@ class TreemapViewState extends State<TreemapView> {
     return false;
   }
 
+  /// The currently highlighted tile, or null if nothing is highlighted.
+  ({String path, bool isDirectory, int size})? get highlighted {
+    if (_hoveredIndex < 0 || _hoveredIndex >= _rects.length) return null;
+    final rect = _rects[_hoveredIndex];
+    return (path: rect.path, isDirectory: rect.isDirectory, size: rect.size);
+  }
+
+  /// Force a rebuild from the database (e.g. after a re-scan changed sizes),
+  /// keeping the highlight on the same path when it still exists.
+  void refresh() {
+    final prevPath = highlighted?.path;
+    setState(() {
+      _builtForPath = '';
+      _buildLayout(_lastWidth, _lastHeight + 3);
+      if (prevPath != null) {
+        final idx = _rects.indexWhere((r) => r.path == prevPath);
+        if (idx >= 0) _hoveredIndex = idx;
+      }
+    });
+  }
+
   /// Find the nearest rect in the given arrow key direction.
   int? _findNearest(LogicalKey key) {
     if (_rects.isEmpty || _hoveredIndex < 0) return null;

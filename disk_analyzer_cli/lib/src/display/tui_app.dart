@@ -329,7 +329,12 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
   void _openInFinder() {
     if (_entries.isEmpty) return;
     final entry = _entries[_selectedIndex];
-    final target = entry.isDirectory ? entry.path : p.dirname(entry.path);
+    _openPathInFinder(entry.path, entry.isDirectory);
+  }
+
+  /// Open [path] in Finder (its parent directory if it's a file).
+  void _openPathInFinder(String path, bool isDirectory) {
+    final target = isDirectory ? path : p.dirname(path);
     Process.start('open', [target], mode: ProcessStartMode.detached);
   }
 
@@ -420,6 +425,11 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
               }
             });
 
+            // Keep the treemap in sync with the updated (bubbled-up) sizes.
+            if (_showTreemap) {
+              _treemapKey.currentState?.refresh();
+            }
+
             Future.delayed(Duration(seconds: 2), () {
               if (mounted) _processNextScan();
             });
@@ -486,13 +496,14 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
           }
           return true;
         }
-        // s = scan selected, Shift+S = scan all unscanned
+        // s = scan selected
         if (event.logicalKey == LogicalKey.keyS) {
-          if (event.isShiftPressed) {
-            _scanAllUnscanned();
-          } else {
-            _scanSelected();
-          }
+          _scanSelected();
+          return true;
+        }
+        // a = scan all unscanned in the current view
+        if (event.logicalKey == LogicalKey.keyA) {
+          _scanAllUnscanned();
           return true;
         }
         if (event.logicalKey == LogicalKey.keyR) {
@@ -792,6 +803,23 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
       treemap.enterHighlighted();
       return true;
     }
+    // s = scan/re-scan the highlighted directory.
+    if (event.logicalKey == LogicalKey.keyS) {
+      final hl = treemap.highlighted;
+      if (hl != null && hl.isDirectory) _enqueueScan(hl.path);
+      return true;
+    }
+    // o = open the highlighted item in Finder.
+    if (event.logicalKey == LogicalKey.keyO) {
+      final hl = treemap.highlighted;
+      if (hl != null) _openPathInFinder(hl.path, hl.isDirectory);
+      return true;
+    }
+    // r = reload the treemap from the database.
+    if (event.logicalKey == LogicalKey.keyR) {
+      treemap.refresh();
+      return true;
+    }
     return true; // Consume all keys in treemap mode
   }
 
@@ -1021,8 +1049,8 @@ class _DiskUsageAppState extends State<DiskUsageApp> {
           Expanded(
             child: Text(
               _showTreemap
-                  ? '\u{2191}\u{2193}\u{2190}\u{2192} Move  \u{23ce} Open  \u{232b} Back  t/Esc Close'
-                  : '\u{2191}\u{2193} Nav  \u{23ce} Open  \u{232b} Back  s Scan  S All  o Finder  t Treemap  , Settings  q Quit',
+                  ? '\u{2191}\u{2193}\u{2190}\u{2192} Move  \u{23ce} Open  s Scan  o Finder  r Reload  \u{232b} Back  t/Esc Close'
+                  : '\u{2191}\u{2193} Nav  \u{23ce} Open  \u{232b} Back  s Scan  a All  o Finder  t Treemap  , Settings  q Quit',
               style: TextStyle(color: Colors.gray),
               overflow: TextOverflow.ellipsis,
               maxLines: 1,
