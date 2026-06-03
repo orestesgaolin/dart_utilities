@@ -1,27 +1,27 @@
-name: CI disk_analyzer_cli
+name: CI git_chain
 
 on:
   push:
     branches: ["main"]
     paths:
-      - "disk_analyzer_cli/**"
-      - ".github/workflows/disk_analyzer_cli.yml"
+      - "git_chain/**"
+      - ".github/workflows/git_chain.yml"
   pull_request:
     branches: ["main"]
     paths:
-      - "disk_analyzer_cli/**"
-      - ".github/workflows/disk_analyzer_cli.yml"
+      - "git_chain/**"
+      - ".github/workflows/git_chain.yml"
   workflow_dispatch:
 
 jobs:
   ci:
     defaults:
       run:
-        working-directory: disk_analyzer_cli
+        working-directory: git_chain
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
       - uses: dart-lang/setup-dart@v1
 
@@ -31,5 +31,8 @@ jobs:
       - name: Analyze project source
         run: dart analyze
 
+      - name: Run tests
+        run: dart test
+
       - name: Compile CLI
-        run: dart build cli --target bin/disk_analyzer_cli.dart --output build
+        run: dart build cli --target bin/git_chain.dart --output build

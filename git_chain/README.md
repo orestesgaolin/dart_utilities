@@ -38,7 +38,12 @@ dart pub global activate --source=path <path to this package>
 
 ### Homebrew
 
-_Coming soon_ (will mirror `changelog_cli`: `brew tap orestesgaolin/tap && brew install git_chain`).
+```sh
+brew tap orestesgaolin/tap
+brew install git_chain
+```
+
+(macOS arm64 and Linux x64.)
 
 **Requires:** `git`, and [`gh`](https://cli.github.com) authenticated (`gh auth login`) for PR detection.
 

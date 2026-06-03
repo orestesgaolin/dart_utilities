@@ -1,8 +1,18 @@
-name: Create Release with Changelog
+name: Create Package Release
 
 on:
   workflow_dispatch:
     inputs:
+      package:
+        description: "Package to release"
+        required: true
+        default: changelog_cli
+        type: choice
+        options:
+          - changelog_cli
+          - slack_cli
+          - disk_analyzer_cli
+          - git_chain
       dry_run:
         description: "Dry run (do not create tag/release)"
         required: false
@@ -12,117 +22,158 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: changelog_cli
-
     permissions:
       contents: write
-
     outputs:
+      package_dir: ${{ steps.package_config.outputs.package_dir }}
+      executable_name: ${{ steps.package_config.outputs.executable_name }}
+      build_mode: ${{ steps.package_config.outputs.build_mode }}
+      build_matrix: ${{ steps.package_config.outputs.build_matrix }}
       tag_name: ${{ steps.tag_check.outputs.tag_name }}
-      version: ${{ steps.version_dart.outputs.version }}
+      version: ${{ steps.version_pubspec.outputs.version }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
-          fetch-depth: 0 # Fetch all history for proper changelog generation
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Dart
         uses: dart-lang/setup-dart@v1
 
-      - name: Install dependencies
-        run: dart pub get
-
-      - name: Activate changelog_cli
-        run: dart pub global activate --source=path .
-
-      - name: Read version from version.dart
-        id: version_dart
+      - name: Install and activate changelog_cli
         run: |
-          VERSION=$(grep "const packageVersion" lib/src/version.dart | sed "s/const packageVersion = '\(.*\)';/\1/")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version from version.dart: $VERSION"
+          cd changelog_cli
+          dart pub get
+          dart pub global activate --source=path .
+
+      - name: Resolve package configuration
+        id: package_config
+        run: |
+          PACKAGE="${{ inputs.package }}"
+
+          case "$PACKAGE" in
+            changelog_cli)
+              echo "package_dir=changelog_cli" >> "$GITHUB_OUTPUT"
+              echo "executable_name=changelog_cli" >> "$GITHUB_OUTPUT"
+              echo "build_mode=exe" >> "$GITHUB_OUTPUT"
+              echo 'build_matrix={"include":[{"os":"ubuntu-latest","artifact_name":"changelog_cli_linux","binary_name":"changelog_cli_linux"},{"os":"windows-latest","artifact_name":"changelog_cli_windows_x64","binary_name":"changelog_cli.exe"},{"os":"macos-latest","artifact_name":"changelog_cli_macos_arm64","binary_name":"changelog_cli_macos"},{"os":"macos-13","artifact_name":"changelog_cli_macos_x64","binary_name":"changelog_cli_macos_x86"}]}' >> "$GITHUB_OUTPUT"
+              ;;
+            slack_cli)
+              echo "package_dir=slack_cli" >> "$GITHUB_OUTPUT"
+              echo "executable_name=slack_cli" >> "$GITHUB_OUTPUT"
+              echo "build_mode=exe" >> "$GITHUB_OUTPUT"
+              echo 'build_matrix={"include":[{"os":"ubuntu-latest","artifact_name":"slack_cli_linux","binary_name":"slack_cli_linux"},{"os":"windows-latest","artifact_name":"slack_cli_windows_x64","binary_name":"slack_cli.exe"},{"os":"macos-latest","artifact_name":"slack_cli_macos_arm64","binary_name":"slack_cli_macos"},{"os":"macos-13","artifact_name":"slack_cli_macos_x64","binary_name":"slack_cli_macos_x86"}]}' >> "$GITHUB_OUTPUT"
+              ;;
+            disk_analyzer_cli)
+              echo "package_dir=disk_analyzer_cli" >> "$GITHUB_OUTPUT"
+              echo "executable_name=disk_analyzer_cli" >> "$GITHUB_OUTPUT"
+              echo "build_mode=bundle" >> "$GITHUB_OUTPUT"
+              echo 'build_matrix={"include":[{"os":"ubuntu-latest","artifact_name":"disk_analyzer_cli_linux_x64"},{"os":"windows-latest","artifact_name":"disk_analyzer_cli_windows_x64"},{"os":"macos-latest","artifact_name":"disk_analyzer_cli_macos_arm64"}]}' >> "$GITHUB_OUTPUT"
+              ;;
+            git_chain)
+              echo "package_dir=git_chain" >> "$GITHUB_OUTPUT"
+              echo "executable_name=git_chain" >> "$GITHUB_OUTPUT"
+              echo "build_mode=bundle" >> "$GITHUB_OUTPUT"
+              echo 'build_matrix={"include":[{"os":"ubuntu-latest","artifact_name":"git_chain_linux_x64"},{"os":"windows-latest","artifact_name":"git_chain_windows_x64"},{"os":"macos-latest","artifact_name":"git_chain_macos_arm64"}]}' >> "$GITHUB_OUTPUT"
+              ;;
+          esac
 
       - name: Read version from pubspec.yaml
         id: version_pubspec
         run: |
-          VERSION=$(grep "^version:" pubspec.yaml | sed "s/version: \(.*\)/\1/")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          PACKAGE_DIR="${{ steps.package_config.outputs.package_dir }}"
+          VERSION=$(grep '^version:' "$PACKAGE_DIR/pubspec.yaml" | sed 's/version: //')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Version from pubspec.yaml: $VERSION"
+
+      - name: Read version from version.dart if present
+        id: version_dart
+        run: |
+          PACKAGE_DIR="${{ steps.package_config.outputs.package_dir }}"
+          VERSION_FILE="$PACKAGE_DIR/lib/src/version.dart"
+
+          if [ -f "$VERSION_FILE" ]; then
+            VERSION=$(grep 'const packageVersion' "$VERSION_FILE" | sed "s/const packageVersion = '\(.*\)';/\1/")
+            echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+            echo "Version from version.dart: $VERSION"
+          else
+            echo 'version=' >> "$GITHUB_OUTPUT"
+            echo "No version.dart for $PACKAGE_DIR, using pubspec.yaml only"
+          fi
 
       - name: Verify versions match
         run: |
-          if [ "${{ steps.version_dart.outputs.version }}" != "${{ steps.version_pubspec.outputs.version }}" ]; then
+          if [ -n "${{ steps.version_dart.outputs.version }}" ] && [ "${{ steps.version_dart.outputs.version }}" != "${{ steps.version_pubspec.outputs.version }}" ]; then
             echo "ERROR: Version mismatch!"
             echo "version.dart: ${{ steps.version_dart.outputs.version }}"
             echo "pubspec.yaml: ${{ steps.version_pubspec.outputs.version }}"
             exit 1
           fi
-          echo "✅ Versions match: ${{ steps.version_dart.outputs.version }}"
+          echo "✅ Release version: ${{ steps.version_pubspec.outputs.version }}"
 
       - name: Get latest tag
         id: latest_tag
         run: |
-          # Get the latest tag for changelog_cli
-          LATEST_TAG=$(git tag -l "changelog_cli-v*" | sort -V | tail -n 1)
+          PACKAGE="${{ inputs.package }}"
+          LATEST_TAG=$(git tag -l "$PACKAGE-v*" | sort -V | tail -n 1)
           if [ -z "$LATEST_TAG" ]; then
-            echo "No previous tags found, using initial commit"
+            echo "No previous tags found for $PACKAGE, using initial commit"
             LATEST_TAG=$(git rev-list --max-parents=0 HEAD)
           fi
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
           echo "Latest tag: $LATEST_TAG"
 
       - name: Check if tag already exists
         id: tag_check
         run: |
-          TAG_NAME="changelog_cli-v${{ steps.version_dart.outputs.version }}"
+          TAG_NAME="${{ inputs.package }}-v${{ steps.version_pubspec.outputs.version }}"
           if git tag -l | grep -q "^$TAG_NAME$"; then
-            echo "exists=true" >> $GITHUB_OUTPUT
+            echo 'exists=true' >> "$GITHUB_OUTPUT"
             echo "❌ Tag $TAG_NAME already exists"
           else
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo 'exists=false' >> "$GITHUB_OUTPUT"
             echo "✅ Tag $TAG_NAME does not exist"
           fi
-          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Fail if tag exists
         if: steps.tag_check.outputs.exists == 'true'
         run: |
           echo "ERROR: Tag ${{ steps.tag_check.outputs.tag_name }} already exists!"
-          echo "Please update the version in version.dart and pubspec.yaml"
+          echo "Please update the version before releasing ${{ inputs.package }}"
           exit 1
 
       - name: Generate changelog and update CHANGELOG.md
         id: changelog
         run: |
-          echo "Generating changelog from ${{ steps.latest_tag.outputs.latest_tag }} to HEAD"
+          PACKAGE_DIR="${{ steps.package_config.outputs.package_dir }}"
+          VERSION="${{ steps.version_pubspec.outputs.version }}"
 
-          # Generate changelog using changelog_cli with --output option
-          # This will prepend the new changelog content to existing CHANGELOG.md
+          echo "Generating changelog for $PACKAGE_DIR from ${{ steps.latest_tag.outputs.latest_tag }} to HEAD"
+
           changelog_cli generate \
             --start "${{ steps.latest_tag.outputs.latest_tag }}" \
-            --end "HEAD" \
-            --version "${{ steps.version_dart.outputs.version }}" \
-            --output CHANGELOG.md
+            --end HEAD \
+            --path "$PACKAGE_DIR" \
+            --version "$VERSION" \
+            --output "$PACKAGE_DIR/CHANGELOG.md"
 
-          # Save changelog content to temporary file for release notes
           changelog_cli generate \
             --start "${{ steps.latest_tag.outputs.latest_tag }}" \
-            --end "HEAD" \
-            --version "${{ steps.version_dart.outputs.version }}" \
+            --end HEAD \
+            --path "$PACKAGE_DIR" \
+            --version "$VERSION" \
             --output /tmp/new_changelog.md
 
-          # Also save to output for GitHub Actions
           {
             echo 'content<<EOF'
             cat /tmp/new_changelog.md
             echo 'EOF'
-          } >> $GITHUB_OUTPUT
+          } >> "$GITHUB_OUTPUT"
 
-          echo "✅ Updated CHANGELOG.md with new version ${{ steps.version_dart.outputs.version }}"
+          echo "✅ Updated $PACKAGE_DIR/CHANGELOG.md with version $VERSION"
 
       - name: Setup Git
         run: |
@@ -131,18 +182,19 @@ jobs:
 
       - name: Commit updated CHANGELOG.md
         run: |
-          git add CHANGELOG.md
+          PACKAGE_DIR="${{ steps.package_config.outputs.package_dir }}"
+          VERSION="${{ steps.version_pubspec.outputs.version }}"
+          git add "$PACKAGE_DIR/CHANGELOG.md"
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "chore: update CHANGELOG.md for v${{ steps.version_dart.outputs.version }}"
+            git commit -m "chore($PACKAGE_DIR): update CHANGELOG.md for v$VERSION"
             echo "✅ Committed CHANGELOG.md changes"
           fi
 
       - name: Push changes
         if: ${{ !inputs.dry_run }}
-        run: |
-          git push origin main
+        run: git push origin main
 
       - name: Create and push tag
         if: ${{ !inputs.dry_run }}
@@ -158,21 +210,20 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG_NAME="${{ steps.tag_check.outputs.tag_name }}"
-
-          # Create release with changelog content
           gh release create "$TAG_NAME" \
             --title "$TAG_NAME" \
             --notes-file /tmp/new_changelog.md \
             --draft
 
           echo "✅ Created GitHub release: $TAG_NAME"
-          echo "The release is created as draft and will be updated with artifacts by the build workflow"
+          echo "The release is created as draft and will be published after artifacts are uploaded"
 
       - name: Dry run summary
         if: ${{ inputs.dry_run }}
         run: |
           echo "🔍 DRY RUN SUMMARY:"
-          echo "- Version: ${{ steps.version_dart.outputs.version }}"
+          echo "- Package: ${{ steps.package_config.outputs.package_dir }}"
+          echo "- Version: ${{ steps.version_pubspec.outputs.version }}"
           echo "- Tag that would be created: ${{ steps.tag_check.outputs.tag_name }}"
           echo "- Latest tag found: ${{ steps.latest_tag.outputs.latest_tag }}"
           echo "- CHANGELOG.md would be updated with new content"
@@ -182,66 +233,88 @@ jobs:
           echo "📝 Generated changelog content:"
           cat /tmp/new_changelog.md
 
-  build_changelog_cli:
+  build_assets:
     needs: release
     if: ${{ !inputs.dry_run }}
-    defaults:
-      run:
-        working-directory: changelog_cli
-    name: Build changelog_cli
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
-        include:
-          - binary-name: changelog_cli_linux
-            os: ubuntu-latest
-          - binary-name: changelog_cli.exe
-            os: windows-latest
-          - binary-name: changelog_cli_macos
-            os: macos-latest
-          - binary-name: changelog_cli_macos_x86
-            os: macos-13
     runs-on: ${{ matrix.os }}
+    strategy:
+      matrix: ${{ fromJson(needs.release.outputs.build_matrix) }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dart-lang/setup-dart@v1
-      - run: dart pub get
-      - run: mkdir build
-      - run: mkdir build/${{ matrix.os }}
-      - run: dart compile exe bin/changelog_cli.dart -o build/${{ matrix.os }}/${{ matrix.binary-name }}
-      - uses: actions/upload-artifact@v4
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Install dependencies
+        run: |
+          cd "${{ needs.release.outputs.package_dir }}"
+          dart pub get
+
+      - name: Build executable
+        if: ${{ needs.release.outputs.build_mode == 'exe' }}
+        run: |
+          cd "${{ needs.release.outputs.package_dir }}"
+          mkdir -p "build/${{ matrix.artifact_name }}"
+          dart compile exe "bin/${{ needs.release.outputs.executable_name }}.dart" -o "build/${{ matrix.artifact_name }}/${{ matrix.binary_name }}"
+
+      - name: Upload executable artifact
+        if: ${{ needs.release.outputs.build_mode == 'exe' }}
+        uses: actions/upload-artifact@v4
         with:
-          name: bin-${{ matrix.os }}
-          path: changelog_cli/build/${{ matrix.os }}/${{ matrix.binary-name }}
+          name: asset-${{ matrix.artifact_name }}
+          path: ${{ needs.release.outputs.package_dir }}/build/${{ matrix.artifact_name }}/${{ matrix.binary_name }}
+
+      - name: Build CLI bundle
+        if: ${{ needs.release.outputs.build_mode == 'bundle' }}
+        run: |
+          cd "${{ needs.release.outputs.package_dir }}"
+          dart build cli --target "bin/${{ needs.release.outputs.executable_name }}.dart" --output "build/${{ matrix.artifact_name }}"
+
+      - name: Upload bundle artifact
+        if: ${{ needs.release.outputs.build_mode == 'bundle' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: asset-${{ matrix.artifact_name }}
+          path: ${{ needs.release.outputs.package_dir }}/build/${{ matrix.artifact_name }}/bundle
 
   upload_artifacts:
-    needs: [release, build_changelog_cli]
+    needs: [release, build_assets]
     if: ${{ !inputs.dry_run }}
-    name: Upload Artifacts to GitHub Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: bin-ubuntu-latest
-          path: bin-linux
-      - uses: actions/download-artifact@v4
-        with:
-          name: bin-macos-latest
-          path: bin-macos
-      - uses: actions/download-artifact@v4
-        with:
-          name: bin-windows-latest
-          path: bin-windows
-      - uses: actions/download-artifact@v4
-        with:
-          name: bin-macos-13
-          path: bin-macos-x86
+          path: release-assets
+          pattern: asset-*
 
-      - name: Upload artifacts to existing release
-        uses: softprops/action-gh-release@v1
+      - name: Package release bundles
+        if: ${{ needs.release.outputs.build_mode == 'bundle' }}
+        run: |
+          mkdir -p dist
+          for bundle_dir in release-assets/asset-*; do
+            asset_name="${bundle_dir#release-assets/asset-}"
+            (
+              cd "$bundle_dir"
+              zip -r "../../dist/${asset_name}.zip" bin lib
+            )
+          done
+
+      - name: Upload executable artifacts to existing release
+        if: ${{ needs.release.outputs.build_mode == 'exe' }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.release.outputs.tag_name }}
-          files: bin-*/*
-          draft: false # Publish the release after artifacts are uploaded
+          files: release-assets/asset-*/*
+          draft: false
+
+      - name: Upload bundle archives to existing release
+        if: ${{ needs.release.outputs.build_mode == 'bundle' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.release.outputs.tag_name }}
+          files: dist/*.zip
+          draft: false
