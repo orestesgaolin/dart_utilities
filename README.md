@@ -9,6 +9,7 @@ The main goal is to be able to use a Dart-only set of tools for things like chan
 | [changelog_cli](changelog_cli)         | Simple CLI to generate bare-bone changelog e.g. for appstore release |
 | [slack_cli](slack_cli)                 | Simple CLI to send Slack messages                                    |
 | [disk_analyzer_cli](disk_analyzer_cli) | CLI to scan disk usage, show interactive tree, and delete files      |
+| [git_chain](git_chain)                 | CLI to sync and manage stacked/chained PRs with GitHub support       |
 
 ## Melos
 

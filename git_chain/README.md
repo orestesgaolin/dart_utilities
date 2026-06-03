@@ -1,6 +1,6 @@
 # git_chain
 
-A terminal UI to manage **stacked git branch chains** — when one feature spans
+A terminal UI to manage **stacked git branch chains** - when one feature spans
 several PRs that each target the previous branch:
 
 ```
@@ -15,12 +15,12 @@ and keep history across every repo on your machine.
 
 ## Features
 
-- 🌳 Visualize stacked branches with their PR number, assignee, draft flag, and live `behind` / `ahead` status.
-- 🔄 Sync a chain to its target — cascading **rebase** or **merge**, running in-app with a live progress overlay.
-- ⚔️ Conflicts open in your configured **`git mergetool`**, then the sync continues.
-- 📦 Stash prompt with explicit, named stashes (auto-restored) when the tree is dirty.
-- 🗂️ Tracks repos, chains, and full sync history in `~/.git_chain/git_chain.db`.
-- 🔎 Hybrid chain detection: reconstructs chains from open PRs (`gh`), editable per repo.
+- Visualize stacked branches with their PR number, assignee, draft flag, and live `behind` / `ahead` status.
+- Sync a chain to its target — cascading **rebase** or **merge**, running in-app with a live progress overlay.
+- Conflicts open in your configured **`git mergetool`**, then the sync continues.
+- Stash prompt with explicit, named stashes (auto-restored) when the tree is dirty.
+- Tracks repos, chains, and full sync history in `~/.git_chain/git_chain.db`.
+- Hybrid chain detection: reconstructs chains from open PRs (`gh`), editable per repo.
 
 ## Install
 
@@ -55,23 +55,23 @@ git_chain sync [name] -s rebase|merge   # sync from the shell
 
 ### Keys (TUI)
 
-| Key | Action | Key | Action |
-|-----|--------|-----|--------|
-| `↑↓` | move | `s` | sync (choose rebase/merge) |
-| `⏎` / `→` | open | `e` | expand commits vs. parent |
-| `←` / `esc` | back | `c` | checkout branch |
-| `i` | import from PRs | `o` | open PR in browser |
-| `d` | delete / untrack | `h` | sync history |
-| `r` | refresh | `q` | quit |
+| Key         | Action           | Key | Action                     |
+| ----------- | ---------------- | --- | -------------------------- |
+| `↑↓`        | move             | `s` | sync (choose rebase/merge) |
+| `⏎` / `→`   | open             | `e` | expand commits vs. parent  |
+| `←` / `esc` | back             | `c` | checkout branch            |
+| `i`         | import from PRs  | `o` | open PR in browser         |
+| `d`         | delete / untrack | `h` | sync history               |
+| `r`         | refresh          | `q` | quit                       |
 
 ## Screenshots
 
-| Chains | Stack status |
-|---|---|
+| Chains                                                                                                                          | Stack status                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | <img src="https://raw.githubusercontent.com/orestesgaolin/dart_utilities/refs/heads/main/git_chain/doc/chains.png" width="420"> | <img src="https://raw.githubusercontent.com/orestesgaolin/dart_utilities/refs/heads/main/git_chain/doc/expanded_commits.png" width="420"> |
 
-| Choose strategy | Live sync |
-|---|---|
+| Choose strategy                                                                                                                   | Live sync                                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | <img src="https://raw.githubusercontent.com/orestesgaolin/dart_utilities/refs/heads/main/git_chain/doc/strategy.png" width="420"> | <img src="https://raw.githubusercontent.com/orestesgaolin/dart_utilities/refs/heads/main/git_chain/doc/sync_progress.png" width="420"> |
 
 ## Try it
