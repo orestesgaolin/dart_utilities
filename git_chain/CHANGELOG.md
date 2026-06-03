@@ -1,10 +1,3 @@
-0.5.0
-
-Features
-
-- add git_chain cli
-
-
 ## 0.5.0
 
 **Features**
