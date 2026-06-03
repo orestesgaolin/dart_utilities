@@ -76,6 +76,7 @@ jobs:
               echo "package_dir=git_chain" >> "$GITHUB_OUTPUT"
               echo "executable_name=git_chain" >> "$GITHUB_OUTPUT"
               echo "build_mode=bundle" >> "$GITHUB_OUTPUT"
+              echo "changelog_printer=markdown" >> "$GITHUB_OUTPUT"
               echo 'build_matrix={"include":[{"os":"ubuntu-latest","artifact_name":"git_chain_linux_x64"},{"os":"windows-latest","artifact_name":"git_chain_windows_x64"},{"os":"macos-latest","artifact_name":"git_chain_macos_arm64"}]}' >> "$GITHUB_OUTPUT"
               ;;
           esac
@@ -150,14 +151,17 @@ jobs:
         run: |
           PACKAGE_DIR="${{ steps.package_config.outputs.package_dir }}"
           VERSION="${{ steps.version_pubspec.outputs.version }}"
+          PRINTER="${{ steps.package_config.outputs.changelog_printer }}"
+          PRINTER="${PRINTER:-simple}"
 
-          echo "Generating changelog for $PACKAGE_DIR from ${{ steps.latest_tag.outputs.latest_tag }} to HEAD"
+          echo "Generating changelog for $PACKAGE_DIR from ${{ steps.latest_tag.outputs.latest_tag }} to HEAD (printer: $PRINTER)"
 
           changelog_cli generate \
             --start "${{ steps.latest_tag.outputs.latest_tag }}" \
             --end HEAD \
             --path "$PACKAGE_DIR" \
             --version "$VERSION" \
+            --printer "$PRINTER" \
             --output "$PACKAGE_DIR/CHANGELOG.md"
 
           changelog_cli generate \
@@ -165,6 +169,7 @@ jobs:
             --end HEAD \
             --path "$PACKAGE_DIR" \
             --version "$VERSION" \
+            --printer "$PRINTER" \
             --output /tmp/new_changelog.md
 
           {
