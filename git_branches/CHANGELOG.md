@@ -1,4 +1,4 @@
-## 0.2.0
+## 0.2.1
 
 **Features**
 - detect squash- and rebase-merged branches (which `git branch --merged` misses) via a patch-id check, shown with a `squashed` badge and treated as safe-to-delete; results are cached per branch/base tip so reloads stay fast.
