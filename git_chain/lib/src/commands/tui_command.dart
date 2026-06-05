@@ -28,6 +28,10 @@ class TuiCommand extends Command<void> {
     // If launched inside a git repo, register it and jump straight to it.
     final discovered = await service.registerRepo(Directory.current.path);
 
+    // Snapshot the terminal before nocterm touches it, so we can restore the
+    // exact original modes (echo, Ctrl+C/ISIG, ONLCR) on exit.
+    captureTerminalState();
+
     final intent = AppIntent();
     await runApp(GitChainApp(
       db: db,

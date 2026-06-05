@@ -2,7 +2,7 @@
 
 **Bug Fixes**
 
-- fix mangled / "stairstepped" shell output after a sync that opened the merge tool. nocterm and `git mergetool` can leave the terminal with output post-processing (`ONLCR`) disabled, which Dart's stdin API can't restore; git_chain now runs `stty sane` on exit to put the terminal back.
+- restore the terminal to its exact pre-launch state on exit by snapshotting `stty -g` before the TUI and replaying it afterwards. Fixes Ctrl+C not working, no echo, and "stairstepped" output (`ONLCR` off) left behind by nocterm / `git mergetool` — none of which Dart's stdin API can restore on its own.
 
 ## 0.5.5
 

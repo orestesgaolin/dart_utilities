@@ -42,17 +42,39 @@ void drainTerminalInput() {
   }
 }
 
-/// Restores sane terminal modes (echo, canonical input, and crucially output
-/// post-processing / `ONLCR`).
-///
-/// nocterm and `git mergetool` can leave the terminal with output processing
-/// disabled, which makes subsequent shell output "stairstep" (line feeds with
-/// no carriage return). Dart's stdin API only restores input flags, so we shell
-/// out to `stty sane` against the controlling terminal.
-Future<void> restoreTerminalModes() async {
+/// The terminal settings captured before the TUI started, used to restore the
+/// exact original state on exit.
+String? _savedTtyState;
+
+/// Snapshots the controlling terminal's settings (`stty -g`) so they can be
+/// restored verbatim later. Call once, before `runApp`.
+void captureTerminalState() {
   if (!(Platform.isMacOS || Platform.isLinux)) return;
   try {
-    await Process.run('sh', ['-c', 'stty sane < /dev/tty']);
+    final result = Process.runSync('sh', ['-c', 'stty -g < /dev/tty']);
+    if (result.exitCode == 0) {
+      final state = (result.stdout as String).trim();
+      if (state.isNotEmpty) _savedTtyState = state;
+    }
+  } catch (_) {
+    // Best-effort.
+  }
+}
+
+/// Restores the terminal to the exact state captured by [captureTerminalState]
+/// (echo, canonical input, signal handling / Ctrl+C, output post-processing /
+/// `ONLCR`). Falls back to `stty sane` if no snapshot was taken.
+///
+/// Dart's stdin API only restores input flags, and nocterm / `git mergetool`
+/// can leave the terminal with signals or output processing disabled — which
+/// breaks Ctrl+C and makes shell output "stairstep". Restoring the full
+/// snapshot fixes all of it at once.
+Future<void> restoreTerminalModes() async {
+  if (!(Platform.isMacOS || Platform.isLinux)) return;
+  final saved = _savedTtyState;
+  final cmd = saved != null ? 'stty $saved < /dev/tty' : 'stty sane < /dev/tty';
+  try {
+    await Process.run('sh', ['-c', cmd]);
   } catch (_) {
     // Best-effort.
   }
