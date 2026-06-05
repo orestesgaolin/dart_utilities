@@ -1,0 +1,40 @@
+name: CI git_branches
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "git_branches/**"
+      - ".github/workflows/git_branches.yml"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "git_branches/**"
+      - ".github/workflows/git_branches.yml"
+  workflow_dispatch:
+
+jobs:
+  ci:
+    defaults:
+      run:
+        working-directory: git_branches
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Analyze project source
+        run: dart analyze
+
+      - name: Run tests
+        run: dart test
+
+      - name: Compile CLI
+        run: |
+          mkdir -p build
+          dart compile exe bin/git_branches.dart -o build/git_branches

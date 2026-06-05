@@ -13,6 +13,7 @@ on:
           - slack_cli
           - disk_analyzer_cli
           - git_chain
+          - git_branches
       dry_run:
         description: "Dry run (do not create tag/release)"
         required: false
@@ -78,6 +79,13 @@ jobs:
               echo "build_mode=bundle" >> "$GITHUB_OUTPUT"
               echo "changelog_printer=markdown" >> "$GITHUB_OUTPUT"
               echo 'build_matrix={"include":[{"os":"ubuntu-latest","artifact_name":"git_chain_linux_x64"},{"os":"windows-latest","artifact_name":"git_chain_windows_x64"},{"os":"macos-latest","artifact_name":"git_chain_macos_arm64"}]}' >> "$GITHUB_OUTPUT"
+              ;;
+            git_branches)
+              echo "package_dir=git_branches" >> "$GITHUB_OUTPUT"
+              echo "executable_name=git_branches" >> "$GITHUB_OUTPUT"
+              echo "build_mode=exe" >> "$GITHUB_OUTPUT"
+              echo "changelog_printer=markdown" >> "$GITHUB_OUTPUT"
+              echo 'build_matrix={"include":[{"os":"ubuntu-latest","artifact_name":"git_branches_linux","binary_name":"git_branches_linux"},{"os":"windows-latest","artifact_name":"git_branches_windows_x64","binary_name":"git_branches.exe"},{"os":"macos-latest","artifact_name":"git_branches_macos_arm64","binary_name":"git_branches_macos"},{"os":"macos-13","artifact_name":"git_branches_macos_x64","binary_name":"git_branches_macos_x86"}]}' >> "$GITHUB_OUTPUT"
               ;;
           esac
 
