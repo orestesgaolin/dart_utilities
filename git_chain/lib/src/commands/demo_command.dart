@@ -27,7 +27,10 @@ class DemoCommand extends Command<void> {
       ..addFlag('force',
           abbr: 'f',
           negatable: false,
-          help: 'Overwrite an existing non-demo directory at the path.');
+          help: 'Overwrite an existing non-demo directory at the path.')
+      ..addFlag('conflict',
+          negatable: false,
+          help: 'Seed a real merge conflict so syncing the chain hits the merge tool.');
   }
 
   String get _defaultPath {
@@ -41,6 +44,7 @@ class DemoCommand extends Command<void> {
   Future<void> run() async {
     final dir = Directory(argResults!['path'] as String? ?? _defaultPath);
     final force = argResults!['force'] as bool;
+    final withConflict = argResults!['conflict'] as bool;
 
     if (dir.existsSync()) {
       final isDemo =
@@ -58,6 +62,7 @@ class DemoCommand extends Command<void> {
 
     stdout.writeln('Building demo repo at ${dir.path} …');
     await _buildRepo(dir.path);
+    if (withConflict) await _addConflict();
     _writeFixture(dir.path);
 
     // Register and detect chains using the fixture as the PR source.
@@ -78,6 +83,12 @@ class DemoCommand extends Command<void> {
       stdout.writeln('');
       stdout.writeln('Demo ready. Take screenshots with:');
       stdout.writeln('  cd ${dir.path} && git_chain');
+      if (withConflict) {
+        stdout.writeln('');
+        stdout.writeln('Conflict seeded on lib/app.dart: syncing the "feat/polish" '
+            'chain will\nconflict on feat/api-layer and open your git mergetool.');
+        stdout.writeln('(Set one first if needed: git config --global merge.tool opendiff)');
+      }
       stdout.writeln('');
       stdout.writeln('Remove it later with:  rm -rf ${dir.path}');
     } finally {
@@ -156,6 +167,25 @@ class DemoCommand extends Command<void> {
     await _git(['checkout', '-q', '-b', 'chore/bump-deps']);
     await _commit('pubspec.yaml', '# deps\n', 'chore: bump dependencies');
 
+    await _git(['checkout', '-q', 'main']);
+  }
+
+  /// Makes `feat/api-layer` and `main` change the same lines of `lib/app.dart`
+  /// in incompatible ways, so syncing the feat/polish chain conflicts on the
+  /// first stack branch and triggers the merge-tool handoff.
+  Future<void> _addConflict() async {
+    await _git(['checkout', '-q', 'feat/api-layer']);
+    await _commit(
+      'lib/app.dart',
+      'void main() {\n  print("checkout via api-layer");\n}\n',
+      'feat: wire up app entrypoint (api-layer)',
+    );
+    await _git(['checkout', '-q', 'main']);
+    await _commit(
+      'lib/app.dart',
+      'void main() {\n  print("checkout via main");\n}\n',
+      'chore: wire up app entrypoint (main)',
+    );
     await _git(['checkout', '-q', 'main']);
   }
 

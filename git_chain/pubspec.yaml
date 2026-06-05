@@ -1,6 +1,6 @@
 name: git_chain
 description: CLI tool to visualize, synchronize, and track stacked git branch chains and their GitHub PRs.
-version: 0.5.0
+version: 0.5.5
 repository: https://github.com/orestesgaolin/dart_utilities
 issue_tracker: https://github.com/orestesgaolin/dart_utilities/issues
 topics:
@@ -20,6 +20,7 @@ environment:
 
 dependencies:
   args: ^2.7.0
+  ffi: ^2.1.0
   nocterm: ^0.6.0
   path: ^1.9.1
   sqlite3: ^3.3.1

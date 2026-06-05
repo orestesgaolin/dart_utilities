@@ -1,3 +1,31 @@
+## 0.5.5
+
+**Features**
+- `git_chain demo --conflict` seeds a real merge conflict on `lib/app.dart`, so syncing the demo's `feat/polish` chain exercises the conflict → merge-tool handoff.
+
+## 0.5.4
+
+**Bug Fixes**
+- stop stray characters (e.g. `62;22c`) leaking into the shell after the TUI exits. nocterm sends a Device Attributes query (`ESC[c`) on shutdown and closes stdin; we now flush the controlling terminal's input via a fresh `/dev/tty` handle (fd 0 is gone by then) so the query's reply is discarded instead of landing at your shell prompt.
+
+## 0.5.3
+
+**Bug Fixes**
+- fix a `StdinException: Bad file descriptor` crash when a TUI sync hit a conflict and handed off to the shell. stdin can't be read synchronously after a nocterm session, so the shell run no longer prompts: the stash/keep-changes decision made in the TUI is passed through, and conflict continuation is detected automatically after `git mergetool`. The CLI `sync` command still prompts as before.
+
+## 0.5.2
+
+**Features**
+- chain detail marks the currently checked-out branch with a `*`, and the marker updates immediately after a checkout (the view refreshes).
+- checking out a branch with a dirty tree now offers a choice: stash & restore, check out keeping the changes (no stash), or cancel.
+- syncing with a dirty tree offers the same choice: stash & restore, sync without stashing (keep changes), or cancel. Merges with unrelated uncommitted files proceed; rebase still reports git's clean-tree requirement.
+
+## 0.5.1
+
+**Bug Fixes**
+- syncing from the TUI no longer fails outright when the working tree is dirty (e.g. uncommitted editor/config changes): it now detects this upfront and offers to stash and restore around the sync, matching the shell path.
+- clarified that branches containing merge commits rebase correctly — git drops the merges and replays only the real commits onto the parent (verified by tests).
+
 ## 0.5.0
 
 **Features**

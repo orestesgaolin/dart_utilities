@@ -52,13 +52,19 @@ class SyncEngine {
   final ConflictResolver resolveConflict;
 
   /// Runs the full chain sync and returns its outcome.
-  Future<SyncOutcome> run(Chain chain, SyncStrategy strategy) async {
+  ///
+  /// When [allowDirty] is false (the default) a dirty working tree aborts the
+  /// sync upfront. When true, the sync proceeds and lets git decide — useful
+  /// for merges whose uncommitted files don't overlap (rebase still refuses a
+  /// dirty tree, reporting git's own error).
+  Future<SyncOutcome> run(Chain chain, SyncStrategy strategy,
+      {bool allowDirty = false}) async {
     final startedAt = DateTime.now();
     final steps = <SyncStepResult>[];
 
     final originalBranch = await repo.currentBranch();
 
-    if (await repo.isDirty()) {
+    if (!allowDirty && await repo.isDirty()) {
       log('✗ Working tree has uncommitted changes — commit or stash first.');
       return SyncOutcome(
         status: 'failed',

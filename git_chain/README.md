@@ -87,6 +87,14 @@ Build a self-contained demo repo (dummy branches + a local PR fixture, no GitHub
 git_chain demo && cd ~/.git_chain/demo-repo && git_chain
 ```
 
+Add `--conflict` to seed a real merge conflict so syncing the `feat/polish`
+chain hits your git mergetool (set one first, e.g.
+`git config --global merge.tool opendiff`):
+
+```sh
+git_chain demo --conflict
+```
+
 ## How sync works
 
 Pulls the latest target, then cascades: rebase/merge `feat/1` onto the updated

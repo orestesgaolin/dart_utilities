@@ -39,6 +39,9 @@ class GitChainApp extends StatefulComponent {
 
 class _GitChainAppState extends State<GitChainApp> {
   _View _view = _View.repos;
+
+  /// View to return to when help is closed.
+  _View _helpReturnView = _View.repos;
   final _scrollController = ScrollController();
 
   // Current view data.
@@ -66,6 +69,9 @@ class _GitChainAppState extends State<GitChainApp> {
   GitRepo? _git;
   Chain? _chain;
 
+  /// The branch currently checked out in the repo (for the ● marker).
+  String? _currentBranch;
+
   // Selection per view.
   int _repoIndex = 0;
   int _chainIndex = 0;
@@ -80,6 +86,14 @@ class _GitChainAppState extends State<GitChainApp> {
 
   // Overlay: strategy chooser before a sync.
   bool _chooseStrategy = false;
+
+  // Overlay: checkout choice when the working tree is dirty.
+  bool _checkoutChoice = false;
+  String? _checkoutBranch;
+
+  // Overlay: sync choice when the working tree is dirty.
+  bool _syncDirtyChoice = false;
+  SyncStrategy? _syncDirtyStrategy;
 
   /// True while an in-app sync is running; shows the progress overlay and
   /// swallows input.
@@ -218,6 +232,7 @@ class _GitChainAppState extends State<GitChainApp> {
     final statuses = await git.chainStatus(refreshed);
     final prs = await component.service.fetchPullRequests(repo);
     final byBranch = {for (final pr in prs) pr.headRef: pr};
+    final current = await git.currentBranch();
 
     // Update the per-session cache.
     _statusCache[chain.id] = statuses;
@@ -229,6 +244,7 @@ class _GitChainAppState extends State<GitChainApp> {
       _chain = refreshed;
       _statuses = statuses;
       _prsByBranch = byBranch;
+      _currentBranch = current;
       _chains = component.db.listChains(repo.id);
       _detailLoaded = true;
       _loading = false;
@@ -258,14 +274,13 @@ class _GitChainAppState extends State<GitChainApp> {
     if (idx < 1 || idx >= chain.branches.length) return;
     final branch = chain.branches[idx].branch;
 
-    // A dirty tree would block (or drag changes into) the checkout — offer to
-    // stash and restore afterwards under an explicit git_chain label.
+    // A dirty tree would block (or drag changes into) the checkout — offer a
+    // choice: stash & restore, or check out keeping the changes (skip stash).
     if (await git.isDirty()) {
       if (!mounted) return;
       setState(() {
-        _confirmPrompt =
-            'Working tree is dirty.\nStash changes → checkout $branch → restore? [y/n]';
-        _confirmAction = () => unawaited(_checkout(branch, stash: true));
+        _checkoutChoice = true;
+        _checkoutBranch = branch;
       });
       return;
     }
@@ -302,6 +317,7 @@ class _GitChainAppState extends State<GitChainApp> {
 
     if (label == null) {
       _flash('✓ Checked out $branch');
+      await _refreshStatuses(silent: true);
       return;
     }
 
@@ -313,6 +329,7 @@ class _GitChainAppState extends State<GitChainApp> {
     } else {
       _flash('⚠ On $branch — stash "$label" kept ($popError)');
     }
+    await _refreshStatuses(silent: true);
   }
 
   void _openHistory() {
@@ -337,11 +354,45 @@ class _GitChainAppState extends State<GitChainApp> {
     final chain = _chain;
     if (repo == null || git == null || chain == null) return;
 
+    // A dirty tree blocks rebase/merge. Detect it upfront and let the user
+    // choose: stash & restore, proceed without stashing, or cancel.
+    if (await git.isDirty()) {
+      if (!mounted) return;
+      setState(() {
+        _chooseStrategy = false;
+        _syncDirtyChoice = true;
+        _syncDirtyStrategy = strategy;
+      });
+      return;
+    }
+    await _doSync(strategy, stash: false);
+  }
+
+  Future<void> _doSync(SyncStrategy strategy,
+      {required bool stash, bool allowDirty = false}) async {
+    final repo = _repo;
+    final git = _git;
+    final chain = _chain;
+    if (repo == null || git == null || chain == null) return;
+
     setState(() {
       _chooseStrategy = false;
       _syncing = true;
       _syncLog = ['Starting ${strategy.label} of "${chain.name}"…'];
     });
+
+    String? stashLabel;
+    if (stash) {
+      stashLabel = GitRepo.stashLabel('pre-sync ${chain.name}');
+      setState(() => _syncLog = [..._syncLog, '⟳ Stashing local changes…']);
+      final pushed = await git.stashPush(stashLabel);
+      if (!pushed.ok) {
+        if (!mounted) return;
+        setState(() => _syncing = false);
+        _flash('✗ stash failed: ${pushed.stderr.trim().split('\n').first}');
+        return;
+      }
+    }
 
     SyncRequest? handoff;
     final engine = SyncEngine(
@@ -352,18 +403,25 @@ class _GitChainAppState extends State<GitChainApp> {
       resolveConflict: (branch, files) async {
         // We can't run an interactive merge tool inside the TUI, so abort to
         // leave the tree clean and hand the sync off to the shell, which will
-        // skip the branches we already synced and resolve this one.
-        handoff = SyncRequest(repo: repo, chain: chain, strategy: strategy);
+        // skip the branches we already synced and resolve this one. The shell
+        // run inherits our stash/allow-dirty decision so it doesn't re-prompt.
+        handoff = SyncRequest(
+          repo: repo,
+          chain: chain,
+          strategy: strategy,
+          stashLabel: stashLabel,
+          allowDirty: allowDirty,
+        );
         return false;
       },
     );
 
-    final outcome = await engine.run(chain, strategy);
-    if (!mounted) return;
+    final outcome = await engine.run(chain, strategy, allowDirty: allowDirty);
 
     if (handoff != null) {
-      // Conflict — finish in the shell with the merge tool. (The shell run
-      // records its own history entry, so we don't record this aborted one.)
+      // Conflict — finish in the shell with the merge tool. Keep our stash in
+      // place; the shell run will restore it once the sync completes there.
+      if (!mounted) return;
       component.intent.syncRequest = handoff;
       TerminalBinding.instance.shutdown();
       return;
@@ -379,16 +437,25 @@ class _GitChainAppState extends State<GitChainApp> {
       steps: outcome.steps,
     );
 
+    String? restoreNote;
+    if (stashLabel != null) {
+      final err = await git.stashPopByMessage(stashLabel);
+      restoreNote = err == null
+          ? null
+          : ' (stash "$stashLabel" kept — $err)';
+    }
+
     // Drop caches so the refreshed status reflects the rebase.
     _statusCache.remove(chain.id);
     _prCache.remove(chain.id);
     _commitsCache.clear();
+    if (!mounted) return;
     setState(() => _syncing = false);
     await _refreshStatuses(silent: true);
     if (!mounted) return;
     _flash(outcome.status == 'ok'
-        ? '✓ Synced — ${outcome.summary}'
-        : 'Sync ${outcome.status} — ${outcome.summary}');
+        ? '✓ Synced — ${outcome.summary}${restoreNote ?? ''}'
+        : 'Sync ${outcome.status} — ${outcome.summary}${restoreNote ?? ''}');
   }
 
   void _openSelectedPr() {
@@ -486,6 +553,8 @@ class _GitChainAppState extends State<GitChainApp> {
   Component _buildBody() {
     if (_syncing) return _buildSyncProgress();
     if (_confirmPrompt != null) return _buildConfirm();
+    if (_checkoutChoice) return _buildCheckoutChoice();
+    if (_syncDirtyChoice) return _buildSyncDirtyChoice();
     if (_chooseStrategy) return _buildStrategyChooser();
     return switch (_view) {
       _View.repos => _buildReposView(),
@@ -502,14 +571,14 @@ class _GitChainAppState extends State<GitChainApp> {
       case _View.repos:
         hints = '↑↓ select   ⏎ open   d untrack   r refresh   ? help   q quit';
       case _View.chains:
-        hints = '↑↓ select   ⏎ open   i import-PRs   d delete   ← back   q quit';
+        hints = '↑↓ select   ⏎ open   i import-PRs   d delete   ← back   ? help   q quit';
       case _View.chainDetail:
         hints =
-            '↑↓ branch  e expand  c checkout  s sync  o open-PR  r refresh  h history  ← back';
+            '↑↓ branch  e expand  c checkout  s sync  o open-PR  r refresh  h history  ? help  ← back';
       case _View.history:
-        hints = '↑↓ scroll   ← back   q quit';
+        hints = '↑↓ scroll   ← back   ? help   q quit';
       case _View.help:
-        hints = '← back   q quit';
+        hints = '? / ← / esc   close help   q quit';
     }
     final msg = _status;
     return Padding(
@@ -709,6 +778,7 @@ class _GitChainAppState extends State<GitChainApp> {
     final isTarget = i == 0;
     final selected = !isTarget && (i - 1) == _branchIndex;
 
+    final isCurrent = branch.branch == _currentBranch;
     final indent = '  ' * i;
     final expandMark = !isTarget && _expanded.contains(i - 1) ? '▾' : '▸';
     final connector = isTarget ? '● ' : '└─$expandMark ';
@@ -731,6 +801,12 @@ class _GitChainAppState extends State<GitChainApp> {
     }
 
     final children = <Component>[
+      // Current-branch (HEAD) marker — updates after a checkout.
+      SizedBox(
+        width: 2,
+        child: Text(isCurrent ? '*' : ' ',
+            style: TextStyle(color: Colors.brightCyan, fontWeight: FontWeight.bold)),
+      ),
       Text('$indent$connector', style: TextStyle(color: Colors.gray)),
       // Left-aligned, fixed-width, trimmed branch name.
       SizedBox(
@@ -861,7 +937,7 @@ class _GitChainAppState extends State<GitChainApp> {
       'Chain detail',
       '  ↑ ↓        select branch in the stack',
       '  e          expand/collapse commits vs. parent (no merges)',
-      '  c          checkout the selected branch (offers to stash if dirty)',
+      '  c          checkout selected branch (if dirty: stash or keep changes)',
       '  s          synchronize chain (choose rebase / merge)',
       '  o          open selected branch PR in browser',
       '  r          refresh branch status & PRs',
@@ -912,6 +988,66 @@ class _GitChainAppState extends State<GitChainApp> {
     );
   }
 
+  Component _buildCheckoutChoice() {
+    return Center(
+      child: Container(
+        padding: EdgeInsets.all(1),
+        decoration: BoxDecoration(
+          color: Color.fromRGB(30, 40, 55),
+          border: BoxBorder.all(color: Colors.cyan),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Checkout "${_checkoutBranch ?? ''}"',
+                style: TextStyle(color: Colors.cyan, fontWeight: FontWeight.bold)),
+            Text(''),
+            Text('The working tree has uncommitted changes:',
+                style: TextStyle(color: Colors.white)),
+            Text(''),
+            Text('  [s]  stash, checkout, then restore',
+                style: TextStyle(color: Colors.green)),
+            Text('  [k]  checkout and keep changes (no stash)',
+                style: TextStyle(color: Colors.green)),
+            Text('  [esc] cancel', style: TextStyle(color: Colors.brightBlack)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Component _buildSyncDirtyChoice() {
+    final strategy = _syncDirtyStrategy;
+    return Center(
+      child: Container(
+        padding: EdgeInsets.all(1),
+        decoration: BoxDecoration(
+          color: Color.fromRGB(30, 40, 55),
+          border: BoxBorder.all(color: Colors.cyan),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Synchronize "${_chain?.name ?? ''}" (${strategy?.label ?? ''})',
+                style: TextStyle(color: Colors.cyan, fontWeight: FontWeight.bold)),
+            Text(''),
+            Text('The working tree has uncommitted changes:',
+                style: TextStyle(color: Colors.white)),
+            Text(''),
+            Text('  [s]  stash, ${strategy?.label ?? 'sync'}, then restore',
+                style: TextStyle(color: Colors.green)),
+            Text('  [k]  ${strategy?.label ?? 'sync'} without stashing (keep changes)',
+                style: TextStyle(color: Colors.green)),
+            if (strategy == SyncStrategy.rebase)
+              Text('       note: rebase needs a clean tree and may refuse',
+                  style: TextStyle(color: Colors.brightBlack)),
+            Text('  [esc] cancel', style: TextStyle(color: Colors.brightBlack)),
+          ],
+        ),
+      ),
+    );
+  }
+
   Component _buildSyncProgress() {
     // Show the most recent log lines.
     const maxLines = 16;
@@ -943,6 +1079,7 @@ class _GitChainAppState extends State<GitChainApp> {
   }
 
   Component _buildConfirm() {
+    final lines = (_confirmPrompt ?? '').split('\n');
     return Center(
       child: Container(
         padding: EdgeInsets.all(1),
@@ -950,8 +1087,17 @@ class _GitChainAppState extends State<GitChainApp> {
           color: Color.fromRGB(55, 35, 35),
           border: BoxBorder.all(color: Colors.red),
         ),
-        child: Text(_confirmPrompt ?? '',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final line in lines)
+              Text(line,
+                  style:
+                      TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+          ],
+        ),
       ),
     );
   }
@@ -983,18 +1129,29 @@ class _GitChainAppState extends State<GitChainApp> {
     if (_syncing) return true;
     // Overlays take priority.
     if (_confirmPrompt != null) return _handleConfirmKey(event);
+    if (_checkoutChoice) return _handleCheckoutChoiceKey(event);
+    if (_syncDirtyChoice) return _handleSyncDirtyKey(event);
     if (_chooseStrategy) return _handleStrategyKey(event);
 
     final key = event.logicalKey;
 
-    // Global.
+    // Global. Stop via the binding (not shutdownApp/exit) so runApp returns to
+    // the caller, which flushes the terminal before exiting — otherwise stray
+    // capability-query responses leak into the shell.
     if (key == LogicalKey.keyQ) {
-      shutdownApp();
+      TerminalBinding.instance.shutdown();
       return true;
     }
     if (key == LogicalKey.question ||
         (key == LogicalKey.slash && event.isShiftPressed)) {
-      setState(() => _view = _View.help);
+      setState(() {
+        if (_view == _View.help) {
+          _view = _helpReturnView; // toggle closed
+        } else {
+          _helpReturnView = _view;
+          _view = _View.help;
+        }
+      });
       return true;
     }
 
@@ -1009,7 +1166,7 @@ class _GitChainAppState extends State<GitChainApp> {
         return _handleHistoryKey(event);
       case _View.help:
         if (_isBack(key)) {
-          setState(() => _view = _repo != null ? _View.chains : _View.repos);
+          setState(() => _view = _helpReturnView);
           return true;
         }
         return false;
@@ -1181,6 +1338,66 @@ class _GitChainAppState extends State<GitChainApp> {
       return true;
     }
     return false;
+  }
+
+  bool _handleCheckoutChoiceKey(KeyboardEvent event) {
+    final key = event.logicalKey;
+    final branch = _checkoutBranch;
+    if (key == LogicalKey.escape) {
+      setState(() {
+        _checkoutChoice = false;
+        _checkoutBranch = null;
+      });
+      return true;
+    }
+    if (branch == null) return true;
+    if (key == LogicalKey.keyS) {
+      setState(() {
+        _checkoutChoice = false;
+        _checkoutBranch = null;
+      });
+      unawaited(_checkout(branch, stash: true));
+      return true;
+    }
+    if (key == LogicalKey.keyK) {
+      setState(() {
+        _checkoutChoice = false;
+        _checkoutBranch = null;
+      });
+      unawaited(_checkout(branch, stash: false));
+      return true;
+    }
+    return true;
+  }
+
+  bool _handleSyncDirtyKey(KeyboardEvent event) {
+    final key = event.logicalKey;
+    final strategy = _syncDirtyStrategy;
+    if (key == LogicalKey.escape) {
+      setState(() {
+        _syncDirtyChoice = false;
+        _syncDirtyStrategy = null;
+      });
+      return true;
+    }
+    if (strategy == null) return true;
+    if (key == LogicalKey.keyS) {
+      setState(() {
+        _syncDirtyChoice = false;
+        _syncDirtyStrategy = null;
+      });
+      unawaited(_doSync(strategy, stash: true));
+      return true;
+    }
+    if (key == LogicalKey.keyK) {
+      setState(() {
+        _syncDirtyChoice = false;
+        _syncDirtyStrategy = null;
+      });
+      unawaited(_doSync(strategy, stash: false, allowDirty: true));
+      return true;
+    }
+    return true;
   }
 
   bool _handleConfirmKey(KeyboardEvent event) {

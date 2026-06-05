@@ -7,11 +7,20 @@ class SyncRequest {
     required this.repo,
     required this.chain,
     required this.strategy,
+    this.stashLabel,
+    this.allowDirty = false,
   });
 
   final Repo repo;
   final Chain chain;
   final SyncStrategy strategy;
+
+  /// A stash already created in-app that the shell run should restore at the
+  /// end (instead of stashing again).
+  final String? stashLabel;
+
+  /// Proceed on a dirty tree without stashing (the in-app "keep changes" choice).
+  final bool allowDirty;
 }
 
 /// Shared mutable holder passed into the TUI. The CLI inspects it after
