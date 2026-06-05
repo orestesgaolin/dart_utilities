@@ -382,3 +382,36 @@ jobs:
           tag_name: ${{ needs.release.outputs.tag_name }}
           files: dist/*.zip
           draft: false
+
+  update_homebrew:
+    # Runs after the release is published with its assets, since the tap's
+    # update workflow downloads the release binaries to recompute checksums.
+    needs: [release, upload_artifacts]
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger homebrew formula update
+        env:
+          # Needs actions:write on orestesgaolin/homebrew-tap.
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          PACKAGE="${{ inputs.package }}"
+          case "$PACKAGE" in
+            changelog_cli)     WORKFLOW=update-changelog-cli.yml ;;
+            slack_cli)         WORKFLOW=update-slack-cli.yml ;;
+            disk_analyzer_cli) WORKFLOW=update-disk-analyzer-cli.yml ;;
+            git_chain)         WORKFLOW=update-git-chain.yml ;;
+            git_branches)      WORKFLOW=update-git-branches.yml ;;
+            *)
+              echo "No homebrew formula for $PACKAGE, skipping"
+              exit 0
+              ;;
+          esac
+
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::RELEASE_PAT not set; skipping homebrew update for $PACKAGE"
+            exit 0
+          fi
+
+          echo "Dispatching $WORKFLOW in orestesgaolin/homebrew-tap"
+          gh workflow run "$WORKFLOW" --repo orestesgaolin/homebrew-tap --ref main
