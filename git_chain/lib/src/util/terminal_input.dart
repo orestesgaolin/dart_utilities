@@ -42,11 +42,28 @@ void drainTerminalInput() {
   }
 }
 
+/// Restores sane terminal modes (echo, canonical input, and crucially output
+/// post-processing / `ONLCR`).
+///
+/// nocterm and `git mergetool` can leave the terminal with output processing
+/// disabled, which makes subsequent shell output "stairstep" (line feeds with
+/// no carriage return). Dart's stdin API only restores input flags, so we shell
+/// out to `stty sane` against the controlling terminal.
+Future<void> restoreTerminalModes() async {
+  if (!(Platform.isMacOS || Platform.isLinux)) return;
+  try {
+    await Process.run('sh', ['-c', 'stty sane < /dev/tty']);
+  } catch (_) {
+    // Best-effort.
+  }
+}
+
 /// Flushes stdout (so any queued terminal query is actually sent), waits for the
-/// reply to travel back, then drains the controlling terminal's input so the
-/// reply can't leak into the shell as stray characters.
+/// reply to travel back, drains the controlling terminal's input so the reply
+/// can't leak into the shell, and restores sane terminal modes.
 Future<void> settleTerminalInput() async {
   if (!(Platform.isMacOS || Platform.isLinux)) return;
+  await restoreTerminalModes();
   try {
     await stdout.flush();
   } catch (_) {}
