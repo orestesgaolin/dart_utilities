@@ -64,13 +64,13 @@ jobs:
               echo "package_dir=changelog_cli" >> "$GITHUB_OUTPUT"
               echo "executable_name=changelog_cli" >> "$GITHUB_OUTPUT"
               echo "build_mode=exe" >> "$GITHUB_OUTPUT"
-              echo 'build_matrix={"include":[{"os":"ubuntu-latest","artifact_name":"changelog_cli_linux","binary_name":"changelog_cli_linux"},{"os":"windows-latest","artifact_name":"changelog_cli_windows_x64","binary_name":"changelog_cli.exe"},{"os":"macos-latest","artifact_name":"changelog_cli_macos_arm64","binary_name":"changelog_cli_macos"},{"os":"macos-13","artifact_name":"changelog_cli_macos_x64","binary_name":"changelog_cli_macos_x86"}]}' >> "$GITHUB_OUTPUT"
+              echo 'build_matrix={"include":[{"os":"ubuntu-latest","artifact_name":"changelog_cli_linux","binary_name":"changelog_cli_linux"},{"os":"windows-latest","artifact_name":"changelog_cli_windows_x64","binary_name":"changelog_cli.exe"},{"os":"macos-latest","artifact_name":"changelog_cli_macos_arm64","binary_name":"changelog_cli_macos"}]}' >> "$GITHUB_OUTPUT"
               ;;
             slack_cli)
               echo "package_dir=slack_cli" >> "$GITHUB_OUTPUT"
               echo "executable_name=slack_cli" >> "$GITHUB_OUTPUT"
               echo "build_mode=exe" >> "$GITHUB_OUTPUT"
-              echo 'build_matrix={"include":[{"os":"ubuntu-latest","artifact_name":"slack_cli_linux","binary_name":"slack_cli_linux"},{"os":"windows-latest","artifact_name":"slack_cli_windows_x64","binary_name":"slack_cli.exe"},{"os":"macos-latest","artifact_name":"slack_cli_macos_arm64","binary_name":"slack_cli_macos"},{"os":"macos-13","artifact_name":"slack_cli_macos_x64","binary_name":"slack_cli_macos_x86"}]}' >> "$GITHUB_OUTPUT"
+              echo 'build_matrix={"include":[{"os":"ubuntu-latest","artifact_name":"slack_cli_linux","binary_name":"slack_cli_linux"},{"os":"windows-latest","artifact_name":"slack_cli_windows_x64","binary_name":"slack_cli.exe"},{"os":"macos-latest","artifact_name":"slack_cli_macos_arm64","binary_name":"slack_cli_macos"}]}' >> "$GITHUB_OUTPUT"
               ;;
             disk_analyzer_cli)
               echo "package_dir=disk_analyzer_cli" >> "$GITHUB_OUTPUT"
@@ -90,7 +90,7 @@ jobs:
               echo "executable_name=git_branches" >> "$GITHUB_OUTPUT"
               echo "build_mode=exe" >> "$GITHUB_OUTPUT"
               echo "changelog_printer=markdown" >> "$GITHUB_OUTPUT"
-              echo 'build_matrix={"include":[{"os":"ubuntu-latest","artifact_name":"git_branches_linux","binary_name":"git_branches_linux"},{"os":"windows-latest","artifact_name":"git_branches_windows_x64","binary_name":"git_branches.exe"},{"os":"macos-latest","artifact_name":"git_branches_macos_arm64","binary_name":"git_branches_macos"},{"os":"macos-13","artifact_name":"git_branches_macos_x64","binary_name":"git_branches_macos_x86"}]}' >> "$GITHUB_OUTPUT"
+              echo 'build_matrix={"include":[{"os":"ubuntu-latest","artifact_name":"git_branches_linux","binary_name":"git_branches_linux"},{"os":"windows-latest","artifact_name":"git_branches_windows_x64","binary_name":"git_branches.exe"},{"os":"macos-latest","artifact_name":"git_branches_macos_arm64","binary_name":"git_branches_macos"}]}' >> "$GITHUB_OUTPUT"
               ;;
           esac
 
