@@ -1,3 +1,12 @@
+1.1.1
+
+Features
+
+- add treemap viewer
+- disk_analyzer_cli: treemap shortcuts + rescan size tests
+- disk_analyzer_cli: left/right arrow navigation in list view
+
+
 ## 1.1.0
 
 **Performance**
