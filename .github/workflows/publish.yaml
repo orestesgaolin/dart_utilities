@@ -1,0 +1,90 @@
+name: Publish to pub.dev
+
+# Triggered when the release workflow pushes a package tag. Uses pub.dev's
+# automated publishing (OIDC) — no secrets required, but each package must have
+# "Automated publishing" enabled on pub.dev with a GitHub Actions tag pattern of
+# `{package}-v{{version}}` pointing at this repository.
+#
+# Note: the tag must be pushed with a PAT (see RELEASE_PAT in release.yaml),
+# otherwise GitHub will not trigger this workflow.
+#
+# It can also be run manually (workflow_dispatch) to re-publish. pub.dev OIDC
+# requires GITHUB_REF to be the release tag, so when running manually pick the
+# package tag (e.g. git_chain-v0.5.6) in the "Use workflow from" ref dropdown —
+# the package is then derived from the tag. Dispatching from a branch instead
+# requires the `package` input, but pub.dev will reject OIDC unless the ref is a
+# matching tag.
+on:
+  push:
+    tags:
+      - "git_chain-v[0-9]+.[0-9]+.[0-9]+*"
+      - "disk_analyzer_cli-v[0-9]+.[0-9]+.[0-9]+*"
+      - "git_branches-v[0-9]+.[0-9]+.[0-9]+*"
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Package to publish (only used when NOT running from a tag ref)"
+        required: false
+        type: choice
+        options:
+          - git_chain
+          - disk_analyzer_cli
+          - git_branches
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required for pub.dev OIDC authentication
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+
+      - name: Resolve package
+        id: pkg
+        env:
+          INPUT_PACKAGE: ${{ inputs.package }}
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            TAG="$GITHUB_REF_NAME"
+            PACKAGE="${TAG%-v*}"
+            TAG_VERSION="${TAG##*-v}"
+            echo "from_tag=true" >> "$GITHUB_OUTPUT"
+            echo "Resolved $PACKAGE from tag $TAG (version $TAG_VERSION)"
+          else
+            PACKAGE="$INPUT_PACKAGE"
+            TAG_VERSION=""
+            echo "from_tag=false" >> "$GITHUB_OUTPUT"
+            if [ -z "$PACKAGE" ]; then
+              echo "ERROR: not running from a tag ref and no 'package' input provided"
+              exit 1
+            fi
+            echo "::warning::Running from ref '$GITHUB_REF', not a tag." \
+              "pub.dev OIDC will reject this unless the ref is a matching tag."
+            echo "Resolved $PACKAGE from workflow input"
+          fi
+          echo "dir=$PACKAGE" >> "$GITHUB_OUTPUT"
+          echo "tag_version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag version matches pubspec.yaml
+        if: steps.pkg.outputs.from_tag == 'true'
+        run: |
+          PACKAGE_DIR="${{ steps.pkg.outputs.dir }}"
+          TAG_VERSION="${{ steps.pkg.outputs.tag_version }}"
+          PUBSPEC_VERSION=$(grep '^version:' "$PACKAGE_DIR/pubspec.yaml" | sed 's/version: //' | tr -d '[:space:]')
+          if [ "$TAG_VERSION" != "$PUBSPEC_VERSION" ]; then
+            echo "ERROR: tag version ($TAG_VERSION) != pubspec version ($PUBSPEC_VERSION)"
+            exit 1
+          fi
+          echo "✅ Version $PUBSPEC_VERSION matches tag"
+
+      - name: Install dependencies
+        working-directory: ${{ steps.pkg.outputs.dir }}
+        run: dart pub get
+
+      - name: Publish
+        working-directory: ${{ steps.pkg.outputs.dir }}
+        run: dart pub publish --force
