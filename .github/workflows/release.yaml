@@ -154,8 +154,28 @@ jobs:
           echo "Please update the version before releasing ${{ inputs.package }}"
           exit 1
 
+      - name: Check if version already in CHANGELOG.md
+        id: changelog_present
+        run: |
+          PACKAGE_DIR="${{ steps.package_config.outputs.package_dir }}"
+          VERSION="${{ steps.version_pubspec.outputs.version }}"
+          CHANGELOG="$PACKAGE_DIR/CHANGELOG.md"
+
+          present=false
+          if [ -f "$CHANGELOG" ] && awk -v ver="$VERSION" '
+            { s=$0; sub(/^#+[[:space:]]*/,"",s); sub(/[[:space:]]+$/,"",s); if (s==ver) { found=1; exit } }
+            END { exit (found ? 0 : 1) }
+          ' "$CHANGELOG"; then
+            present=true
+            echo "ℹ️ Version $VERSION already present in $CHANGELOG, skipping changelog generation"
+          else
+            echo "✅ Version $VERSION not yet in $CHANGELOG, will generate"
+          fi
+          echo "present=$present" >> "$GITHUB_OUTPUT"
+
       - name: Generate changelog and update CHANGELOG.md
         id: changelog
+        if: steps.changelog_present.outputs.present != 'true'
         run: |
           PACKAGE_DIR="${{ steps.package_config.outputs.package_dir }}"
           VERSION="${{ steps.version_pubspec.outputs.version }}"
@@ -180,13 +200,36 @@ jobs:
             --printer "$PRINTER" \
             --output /tmp/new_changelog.md
 
-          {
-            echo 'content<<EOF'
-            cat /tmp/new_changelog.md
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
           echo "✅ Updated $PACKAGE_DIR/CHANGELOG.md with version $VERSION"
+
+      - name: Extract existing changelog section for release notes
+        if: steps.changelog_present.outputs.present == 'true'
+        run: |
+          PACKAGE_DIR="${{ steps.package_config.outputs.package_dir }}"
+          VERSION="${{ steps.version_pubspec.outputs.version }}"
+          CHANGELOG="$PACKAGE_DIR/CHANGELOG.md"
+
+          # Extract the section for VERSION: from its header line up to the
+          # next version header (a line whose text after stripping leading
+          # '#'s starts with a version number).
+          awk -v ver="$VERSION" '
+            function header_version(line,   s) {
+              s=line; sub(/^#+[[:space:]]*/,"",s); sub(/[[:space:]]+$/,"",s)
+              return s
+            }
+            !found {
+              if (header_version($0)==ver) { found=1; print; next }
+            }
+            found {
+              s=header_version($0)
+              if (s ~ /^[0-9]+\.[0-9]+/) { exit }
+              print
+            }
+          ' "$CHANGELOG" > /tmp/new_changelog.md
+
+          echo "✅ Extracted existing CHANGELOG.md section for version $VERSION"
+          echo "📝 Release notes content:"
+          cat /tmp/new_changelog.md
 
       - name: Setup Git
         run: |
@@ -239,11 +282,15 @@ jobs:
           echo "- Version: ${{ steps.version_pubspec.outputs.version }}"
           echo "- Tag that would be created: ${{ steps.tag_check.outputs.tag_name }}"
           echo "- Latest tag found: ${{ steps.latest_tag.outputs.latest_tag }}"
-          echo "- CHANGELOG.md would be updated with new content"
+          if [ "${{ steps.changelog_present.outputs.present }}" == "true" ]; then
+            echo "- Version already in CHANGELOG.md, generation skipped (existing section used for release notes)"
+          else
+            echo "- CHANGELOG.md would be updated with new content"
+          fi
           echo "- No actual tag or release would be created"
 
           echo ""
-          echo "📝 Generated changelog content:"
+          echo "📝 Release notes content:"
           cat /tmp/new_changelog.md
 
   build_assets:
