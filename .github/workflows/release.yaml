@@ -1,4 +1,5 @@
 name: Create Package Release
+run-name: Create Release for ${{ inputs.package }}
 
 on:
   workflow_dispatch:
