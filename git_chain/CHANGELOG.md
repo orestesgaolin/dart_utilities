@@ -1,6 +1,13 @@
 ## 0.5.5
 
 **Features**
+
+- **git_chain**: add conflict demo and improve TUI sync handoff
+
+
+## 0.5.5
+
+**Features**
 - `git_chain demo --conflict` seeds a real merge conflict on `lib/app.dart`, so syncing the demo's `feat/polish` chain exercises the conflict → merge-tool handoff.
 
 ## 0.5.4
