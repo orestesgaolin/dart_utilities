@@ -10,6 +10,7 @@ The main goal is to be able to use a Dart-only set of tools for things like chan
 | [slack_cli](slack_cli)                 | Simple CLI to send Slack messages                                    |
 | [disk_analyzer_cli](disk_analyzer_cli) | CLI to scan disk usage, show interactive tree, and delete files      |
 | [git_chain](git_chain)                 | CLI to sync and manage stacked/chained PRs with GitHub support       |
+| [git_branches](git_branches)           | CLI to find merged & stale local branches and batch-delete or push   |
 
 ## Melos
 
