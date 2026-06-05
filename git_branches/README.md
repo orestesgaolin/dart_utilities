@@ -50,7 +50,7 @@ activity, and status badges (`merged`, `stale`, `current`, `default`, `gone`,
 `no-upstream`, `↑ahead`, `↓behind`). The current and default branches are pinned
 to the top and protected from deletion.
 
-![](docs/demo.gif)
+![](https://github.com/orestesgaolin/dart_utilities/blob/main/git_branches/docs/demo.gif?raw=true)
 
 ### Marking & acting
 
