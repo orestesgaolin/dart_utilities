@@ -4,9 +4,9 @@ A terminal tool to find **merged and stale local git branches** and clean them
 up - delete the dead ones, push the ones with unpushed work - without leaving
 the keyboard.
 
-| Main                 | Delete screen          |
-| -------------------- | ---------------------- |
-| ![](docs/main_s.png) | ![](docs/delete_s.png) |
+| Main                                                                                                 | Delete screen                                                                                          |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| ![](https://github.com/orestesgaolin/dart_utilities/blob/main/git_branches/docs/main_s.png?raw=true) | ![](https://github.com/orestesgaolin/dart_utilities/blob/main/git_branches/docs/delete_s.png?raw=true) |
 
 It shows every local branch ordered by last activity, flags which are merged
 into the default branch, stale, or have a gone/ahead upstream, and lets you act
