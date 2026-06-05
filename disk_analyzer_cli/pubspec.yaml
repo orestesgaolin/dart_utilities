@@ -18,7 +18,7 @@ environment:
 dependencies:
   args: ^2.7.0
   ffi: ^2.1.4
-  nocterm: ^0.6.0
+  nocterm: ">=0.6.0 <0.8.0"
   path: ^1.9.1
   sqlite3: ^3.3.1
 
