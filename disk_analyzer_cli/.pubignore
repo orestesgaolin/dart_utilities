@@ -2,5 +2,4 @@ benchmark/.fixtures/
 benchmark/.tmp/
 benchmark/results/
 build/
-lib/src/display/treemap_view.dart
 pubspec.lock

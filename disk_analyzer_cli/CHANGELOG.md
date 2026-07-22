@@ -1,4 +1,8 @@
-1.1.1
+## 1.1.2
+
+- fix treemap viewer
+
+## 1.1.1
 
 Features
 

@@ -21,7 +21,7 @@ Or run directly:
 dart run bin/disk_analyzer_cli.dart <command>
 ```
 
-## Commands
+## Command
 
 ### `scan` — Scan a directory
 
