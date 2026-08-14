@@ -20,7 +20,7 @@ dependencies:
   git: ^2.3.1
   intl: ^0.20.2
   mason_logger: ^0.3.3
-  pub_updater: ^0.5.0
+  pub_updater: ">=0.5.0 <0.7.0"
   yaml: ^3.1.2
 
 dev_dependencies:
